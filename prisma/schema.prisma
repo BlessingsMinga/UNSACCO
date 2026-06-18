@@ -1,0 +1,207 @@
+// UNISSACO - University Student Savings and Investment Cooperative
+// Prisma schema (SQLite adapter; designed to map cleanly to PostgreSQL in production)
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// MODULE 1 + 2: Authentication & Member Management
+// ────────────────────────────────────────────────────────────────────────────
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  // Role: MEMBER | ADMIN | SUPER_ADMIN
+  role         String   @default("MEMBER")
+  // Member status: PENDING | ACTIVE | SUSPENDED | CLOSED
+  status       String   @default("PENDING")
+  emailVerified Boolean @default(false)
+
+  // Profile fields
+  fullName      String?
+  studentId     String?  @unique
+  phone         String?
+  program       String?
+  yearOfStudy   String?
+  gender        String?
+  dateOfBirth   DateTime?
+  address       String?
+  nextOfKin     String?
+  nextOfKinPhone String?
+  avatarUrl     String?
+
+  joinedAt      DateTime @default(now())
+  approvedAt    DateTime?
+  approvedById  String?
+  suspendedAt   DateTime?
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Relations
+  savingsAccount  SavingsAccount?
+  shareHoldings   ShareHolding?
+  savingsTxns     SavingsTransaction[]
+  shareTxns       ShareTransaction[]
+  investments     InvestmentMember[]
+  auditLogs       AuditLog[]
+
+  @@index([status])
+  @@index([role])
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// MODULE 3: Savings Management
+// ────────────────────────────────────────────────────────────────────────────
+
+model SavingsAccount {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  balance   Float    @default(0)
+  // interest accrued over time (compound, configurable)
+  interestAccrued Float @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  transactions SavingsTransaction[]
+}
+
+model SavingsTransaction {
+  id           String   @id @default(cuid())
+  accountId    String
+  account      SavingsAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // Type: DEPOSIT | WITHDRAWAL | ADJUSTMENT | INTEREST | DIVIDEND
+  type         String
+  amount       Float
+  balanceAfter Float
+  description  String
+  reference    String   @unique
+  // channel/method: MOBILE_MONEY | BANK | CASH | SYSTEM
+  method       String   @default("SYSTEM")
+  status       String   @default("COMPLETED") // COMPLETED | PENDING | REVERSED
+  recordedById String?
+  createdAt    DateTime @default(now())
+
+  @@index([userId])
+  @@index([accountId])
+  @@index([type])
+  @@index([createdAt])
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// MODULE 4: Share Management
+// ────────────────────────────────────────────────────────────────────────────
+
+model ShareHolding {
+  id            String   @id @default(cuid())
+  userId        String   @unique
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  numberOfShares Int     @default(0)
+  totalValue    Float    @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  transactions ShareTransaction[]
+}
+
+model ShareTransaction {
+  id            String   @id @default(cuid())
+  holdingId     String
+  holding       ShareHolding @relation(fields: [holdingId], references: [id], onDelete: Cascade)
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // Type: BUY | SELL | ALLOTMENT
+  type          String
+  numberOfShares Int
+  pricePerShare Float
+  totalAmount   Float
+  sharesAfter   Int
+  reference     String   @unique
+  status        String   @default("COMPLETED")
+  createdAt     DateTime @default(now())
+
+  @@index([userId])
+  @@index([holdingId])
+  @@index([createdAt])
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// MODULE 5: Investments
+// ────────────────────────────────────────────────────────────────────────────
+
+model Investment {
+  id             String   @id @default(cuid())
+  name           String
+  category       String   // AGRICULTURE | STUDENT_VENTURE | FIXED_INCOME | REAL_ESTATE | OTHER
+  description    String
+  amountInvested Float
+  expectedROI    Float    @default(0) // percentage
+  actualProfit   Float    @default(0)
+  // Status: PROPOSED | ACTIVE | MATURED | CLOSED | CANCELLED
+  status         String   @default("PROPOSED")
+  startDate      DateTime
+  endDate        DateTime?
+  imageUrl       String?
+  createdBy      String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  members InvestmentMember[]
+
+  @@index([status])
+  @@index([category])
+}
+
+model InvestmentMember {
+  id           String   @id @default(cuid())
+  investmentId String
+  investment   Investment @relation(fields: [investmentId], references: [id], onDelete: Cascade)
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  amountContributed Float
+  sharePct     Float    @default(0) // share of total investment
+  expectedReturn Float  @default(0)
+  actualReturn Float    @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([investmentId, userId])
+  @@index([userId])
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// SYSTEM: Settings + Audit
+// ────────────────────────────────────────────────────────────────────────────
+
+model Setting {
+  id    String @id
+  value String
+  // Common keys: SHARE_PRICE, SAVINGS_INTEREST_RATE, MIN_SAVINGS, DIVIDEND_RATE
+  updatedAt DateTime @updatedAt
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  action    String   // e.g. LOGIN, DEPOSIT, SHARE_BUY, MEMBER_APPROVE
+  entity    String   // e.g. SavingsTransaction, User
+  entityId  String?
+  details   String
+  ipAddress String?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([action])
+  @@index([createdAt])
+}
