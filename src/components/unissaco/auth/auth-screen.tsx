@@ -49,8 +49,8 @@ export function AuthScreen() {
   const [showPwd, setShowPwd] = useState(false);
 
   // login state
-  const [loginEmail, setLoginEmail] = useState("grace.banda@students.unissacco.ac.mw");
-  const [loginPwd, setLoginPwd] = useState("Member@123");
+  const [loginEmail, setLoginEmail] = useState("admin@unissacco.ac.mw");
+  const [loginPwd, setLoginPwd] = useState("");
 
   // register state
   const [reg, setReg] = useState({
@@ -371,8 +371,7 @@ export function AuthScreen() {
 
             <Card className="mt-5 p-3.5 bg-muted/40 border-dashed">
               <p className="text-xs font-medium text-muted-foreground mb-1.5">Demo accounts</p>
-              <div className="text-xs text-muted-foreground space-y-0.5">
-                <p>Member: <code className="bg-background px-1 rounded">grace.banda@students.unissacco.ac.mw</code> / <code className="bg-background px-1 rounded">Member@123</code></p>
+              <div className="text-xs text-muted-foreground">
                 <p>Admin: <code className="bg-background px-1 rounded">admin@unissacco.ac.mw</code> / <code className="bg-background px-1 rounded">Admin@123</code></p>
               </div>
             </Card>
