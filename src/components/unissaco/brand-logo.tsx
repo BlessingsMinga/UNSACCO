@@ -7,7 +7,7 @@ interface BrandLogoProps {
   variant?: "default" | "light";
 }
 
-// UNISSACO mark — a sprout (growth) inside a shield (cooperative trust).
+// UNISSACO mark  a sprout (growth) inside a shield (cooperative trust).
 export function BrandLogo({ className, size = 36, showText = false, variant = "default" }: BrandLogoProps) {
   const textColor = variant === "light" ? "text-white" : "text-foreground";
   return (

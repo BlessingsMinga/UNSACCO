@@ -1,4 +1,4 @@
-// UNISSACO seed script — demo admin, members, savings, shares, investments.
+// UNISSACO seed script  demo admin, members, savings, shares, investments.
 // Run with: bun run scripts/seed.ts
 
 import { PrismaClient } from "@prisma/client";
@@ -272,7 +272,7 @@ async function main() {
       actualProfit: 180000,
     },
     {
-      name: "Treasury Bills — 91 Day",
+      name: "Treasury Bills  91 Day",
       category: "FIXED_INCOME",
       description:
         "RBM 91-day treasury bills laddered monthly for steady, low-risk yield on the cooperative's reserve pool.",

@@ -123,10 +123,19 @@
 
 @layer utilities {
   .brand-gradient {
-    background-image: linear-gradient(135deg, oklch(0.55 0.13 162) 0%, oklch(0.45 0.11 175) 50%, oklch(0.4 0.1 185) 100%);
+    background-image: linear-gradient(
+      135deg,
+      oklch(0.55 0.13 162) 0%,
+      oklch(0.45 0.11 175) 50%,
+      oklch(0.4 0.1 185) 100%
+    );
   }
   .gold-gradient {
-    background-image: linear-gradient(135deg, oklch(0.78 0.16 90) 0%, oklch(0.72 0.15 70) 100%);
+    background-image: linear-gradient(
+      135deg,
+      oklch(0.78 0.16 90) 0%,
+      oklch(0.72 0.15 70) 100%
+    );
   }
   .surface-grid {
     background-image:
@@ -165,9 +174,130 @@
 
 /* Smooth number transitions for stat cards */
 @keyframes count-in {
-  from { opacity: 0; transform: translateY(4px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 .animate-count-in {
   animation: count-in 0.4s ease-out;
+}
+
+/* Micro-interaction animations */
+@keyframes micro-pulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.7;
+    transform: scale(0.95);
+  }
+}
+@keyframes micro-bounce {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-3px);
+  }
+}
+@keyframes micro-shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+@keyframes micro-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+}
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.92);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.animate-micro-pulse {
+  animation: micro-pulse 2s ease-in-out infinite;
+}
+.animate-micro-bounce {
+  animation: micro-bounce 1.5s ease-in-out infinite;
+}
+.animate-micro-shimmer {
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    var(--muted) 50%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  animation: micro-shimmer 2s ease-in-out infinite;
+}
+.animate-micro-float {
+  animation: micro-float 3s ease-in-out infinite;
+}
+.animate-fade-in-up {
+  animation: fade-in-up 0.5s ease-out forwards;
+}
+.animate-scale-in {
+  animation: scale-in 0.3s ease-out forwards;
+}
+
+/* Staggered children animations */
+.stagger-children > * {
+  opacity: 0;
+  animation: fade-in-up 0.5s ease-out forwards;
+}
+.stagger-children > *:nth-child(1) {
+  animation-delay: 0ms;
+}
+.stagger-children > *:nth-child(2) {
+  animation-delay: 80ms;
+}
+.stagger-children > *:nth-child(3) {
+  animation-delay: 160ms;
+}
+.stagger-children > *:nth-child(4) {
+  animation-delay: 240ms;
+}
+.stagger-children > *:nth-child(5) {
+  animation-delay: 320ms;
+}
+.stagger-children > *:nth-child(6) {
+  animation-delay: 400ms;
+}
+.stagger-children > *:nth-child(7) {
+  animation-delay: 480ms;
+}
+.stagger-children > *:nth-child(8) {
+  animation-delay: 560ms;
 }

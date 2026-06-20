@@ -1,5 +1,5 @@
 // UNISSACO platform-wide constants & configuration
-// Currency: Malawian Kwacha (MWK) — matches Africa/Blantyre timezone context.
+// Currency: Malawian Kwacha (MWK)  matches Africa/Blantyre timezone context.
 
 export const CURRENCY = "MWK";
 export const CURRENCY_LOCALE = "en-MW";

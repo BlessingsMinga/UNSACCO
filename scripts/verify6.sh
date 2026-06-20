@@ -1,5 +1,5 @@
 #!/bin/bash
-# verify6 — Savings nav button (by ref) + deposit submission end-to-end.
+# verify6  Savings nav button (by ref) + deposit submission end-to-end.
 cd /home/z/my-project
 echo "================================================"
 echo "  UNISSACO VERIFY 6 (savings + deposit e2e)"
@@ -81,7 +81,7 @@ echo ""
 echo "=== Verify deposit recorded (API check) ==="
 BAL=$(curl -s --max-time 10 -b /tmp/v6-cookies.txt http://127.0.0.1:3000/api/savings/summary 2>/dev/null)
 # browser cookies differ; instead read the savings tab balance from the page
-echo "  (deposit submitted via UI — balance should reflect +7500)"
+echo "  (deposit submitted via UI  balance should reflect +7500)"
 
 echo ""
 echo "=== Console errors ==="

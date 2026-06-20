@@ -5,7 +5,7 @@ import { SHARE_PRICE } from "@/lib/constants";
 
 export const runtime = "nodejs";
 
-// Member dashboard aggregate — overview cards + charts
+// Member dashboard aggregate  overview cards + charts
 export async function GET() {
   try {
     const user = await requireAuth();

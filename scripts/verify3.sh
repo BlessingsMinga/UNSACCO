@@ -1,5 +1,5 @@
 #!/bin/bash
-# verify3 — correct ref extraction (token "ref=e3" → "@e3")
+# verify3  correct ref extraction (token "ref=e3" → "@e3")
 set -u
 cd /home/z/my-project
 
@@ -61,7 +61,7 @@ if [ -n "$APPROVE_REF" ]; then
   echo "  after approve (first 200): $(echo "$AB2" | tr '\n' ' ' | head -c 200)"
   if echo "$AB2" | grep -qi "status updated\|ACTIVE"; then echo "  ✓ approve action triggered"; fi
 else
-  echo "  (no Approve button ref found — maybe already approved or none visible)"
+  echo "  (no Approve button ref found  maybe already approved or none visible)"
 fi
 
 echo ""

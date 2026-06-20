@@ -1,5 +1,5 @@
 #!/bin/bash
-# verify4 — robust verification using jq to parse snapshot JSON for refs.
+# verify4  robust verification using jq to parse snapshot JSON for refs.
 cd /home/z/my-project
 
 echo "================================================"
@@ -74,7 +74,7 @@ if [ -n "$APR" ]; then
   agent-browser click "$APR" 2>/dev/null; sleep 3
   echo "  after approve: $(agent-browser get text body 2>/dev/null | tr '\n' ' ' | head -c 150)"
 else
-  echo "  (no Approve button — may already be approved)"
+  echo "  (no Approve button  may already be approved)"
 fi
 
 echo ""

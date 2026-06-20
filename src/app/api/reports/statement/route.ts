@@ -50,7 +50,7 @@ export async function GET() {
 
     // Plain-text friendly statement for print/export
     const printable = [
-      `UNISSACO — MEMBER STATEMENT`,
+      `UNISSACO  MEMBER STATEMENT`,
       `Name: ${user.fullName ?? "—"}`,
       `Student ID: ${user.studentId ?? "—"}`,
       `Email: ${user.email}`,

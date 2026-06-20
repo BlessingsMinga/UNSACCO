@@ -35,7 +35,7 @@ export async function POST(req: Request) {
           type: "WITHDRAWAL",
           amount: cost,
           balanceAfter: newBalance,
-          description: `Share purchase — ${data.numberOfShares} share(s)`,
+          description: `Share purchase  ${data.numberOfShares} share(s)`,
           reference: generateReference("SHR"),
           method: "SYSTEM",
           status: "COMPLETED",

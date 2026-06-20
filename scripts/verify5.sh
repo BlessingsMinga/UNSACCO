@@ -1,5 +1,5 @@
 #!/bin/bash
-# verify5 — member flows: savings+deposit, shares+buy, investments
+# verify5  member flows: savings+deposit, shares+buy, investments
 cd /home/z/my-project
 
 echo "================================================"

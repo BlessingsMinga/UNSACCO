@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { cn } from "@/lib/utils";
-import { useApp, type ApiUser } from "@/lib/store";
+import { useApp } from "@/lib/store";
+import type { ApiUser } from "@/lib/api-client";
 import { api } from "@/lib/api-client";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -194,7 +195,7 @@ export function DashboardLayout({
           <main className="flex-1 p-4 sm:p-6 lg:p-8">{children}</main>
 
           <footer className="border-t border-border/60 py-4 px-6 text-center text-xs text-muted-foreground">
-            © {new Date().getFullYear()} UNISSACO · {badgeLabel} Portal · Member-owned cooperative
+            &copy; {new Date().getFullYear()} UNISSACO &middot; {badgeLabel} Portal &middot; Member-owned cooperative
           </footer>
         </div>
 
