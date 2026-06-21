@@ -4,6 +4,7 @@ import { useApp } from "@/lib/store";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { BrandLogo } from "@/components/unissaco/brand-logo";
+import DotField from "@/components/unissaco/landing/DotField";
 import {
   ArrowRight,
   PiggyBank,
@@ -137,12 +138,22 @@ export function LandingPage() {
 
       <main className="flex-1">
         {/* Hero */}
-        <section className="relative overflow-hidden">
-          <div className="absolute inset-0 surface-grid opacity-60" />
-          <div className="absolute -top-32 -right-32 size-96 rounded-full bg-primary/10 blur-3xl animate-micro-float" style={{ animationDuration: "8s" }} />
-          <div className="absolute -bottom-32 -left-32 size-96 rounded-full bg-amber-400/10 blur-3xl animate-micro-float" style={{ animationDuration: "10s", animationDelay: "-2s" }} />
+        <section className="relative overflow-hidden min-h-[600px]">
+          <div className="absolute inset-0 z-0">
+            <DotField
+              dotRadius={1.6}
+              dotSpacing={14}
+              bulgeStrength={100}
+              glowRadius={0}
+              sparkle={false}
+              waveAmplitude={0}
+            />
+          </div>
+          <div className="absolute inset-0 surface-grid opacity-60 z-1" />
+          <div className="absolute -top-32 -right-32 size-96 rounded-full bg-primary/10 blur-3xl animate-micro-float z-1" style={{ animationDuration: "8s" }} />
+          <div className="absolute -bottom-32 -left-32 size-96 rounded-full bg-amber-400/10 blur-3xl animate-micro-float z-1" style={{ animationDuration: "10s", animationDelay: "-2s" }} />
 
-          <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 pt-16 pb-20 lg:pt-24 lg:pb-28 grid lg:grid-cols-2 gap-12 items-center">
+          <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 pt-16 pb-20 lg:pt-24 lg:pb-28 grid lg:grid-cols-2 gap-12 items-center z-2">
             <motion.div
               initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
@@ -408,7 +419,7 @@ export function LandingPage() {
                 >
                   <Card className="p-5 flex items-center justify-between hover:shadow-md transition-all cursor-default">
                     <div className="flex items-center gap-4">
-                      <div className="size-12 rounded-xl bg-gradient-to-br from-primary/15 to-amber-500/10 flex items-center justify-center group-hover:scale-110 transition-transform">
+                      <div className="size-12 rounded-xl bg-linear-to-br from-primary/15 to-amber-500/10 flex items-center justify-center group-hover:scale-110 transition-transform">
                         <Sprout className="size-6 text-primary" />
                       </div>
                       <div>
