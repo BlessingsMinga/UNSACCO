@@ -76,5 +76,48 @@ export const updateProfileSchema = z.object({
   avatarUrl: z.string().url().optional().or(z.literal("")),
 });
 
+// ── Loan Schemas ──────────────────────────────────────────────────────────
+
+export const loanProductSchema = z.object({
+  name: z.string().min(3, "Product name is required").max(80),
+  description: z.string().max(500).optional().default(""),
+  minAmount: z.number().min(0).default(0),
+  maxAmount: z.number().positive("Max amount must be greater than zero"),
+  interestRate: z.number().min(0).max(100, "Interest rate cannot exceed 100%"),
+  repaymentPeriod: z.number().int().positive("Repayment period must be at least 1 month"),
+  processingFee: z.number().min(0).max(100).default(0),
+  latePaymentPenalty: z.number().min(0).max(100).default(0),
+  requiresGuarantor: z.boolean().default(false),
+  minGuarantors: z.number().int().min(0).default(0),
+  status: z.enum(["ACTIVE", "INACTIVE"]).default("ACTIVE"),
+});
+
+export const loanApplicationSchema = z.object({
+  productId: z.string().min(1, "Loan product is required"),
+  amountApplied: z.number().positive("Loan amount must be greater than zero"),
+  purpose: z.string().min(10, "Please describe the purpose of the loan").max(500),
+});
+
+export const loanApprovalSchema = z.object({
+  action: z.enum(["approve", "reject"]),
+  amountApproved: z.number().positive().optional(),
+  rejectionReason: z.string().max(300).optional(),
+});
+
+export const loanRepaymentSchema = z.object({
+  amount: z.number().positive("Repayment amount must be greater than zero"),
+  method: z.enum(["MOBILE_MONEY", "BANK", "CASH", "SYSTEM"]).default("MOBILE_MONEY"),
+});
+
+export const loanGuarantorSchema = z.object({
+  userId: z.string().min(1, "Guarantor is required"),
+  amountGuaranteed: z.number().positive("Guaranteed amount must be greater than zero"),
+});
+
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
+export type LoanProductInput = z.infer<typeof loanProductSchema>;
+export type LoanApplicationInput = z.infer<typeof loanApplicationSchema>;
+export type LoanApprovalInput = z.infer<typeof loanApprovalSchema>;
+export type LoanRepaymentInput = z.infer<typeof loanRepaymentSchema>;
+export type LoanGuarantorInput = z.infer<typeof loanGuarantorSchema>;

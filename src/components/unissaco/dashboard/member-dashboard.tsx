@@ -6,6 +6,7 @@ import {
   LayoutDashboard,
   PiggyBank,
   TrendingUp,
+  Landmark,
   Sprout,
   FileText,
   UserCircle,
@@ -13,6 +14,7 @@ import {
 import { OverviewTab } from "@/components/unissaco/dashboard/tabs/overview";
 import { SavingsTab } from "@/components/unissaco/dashboard/tabs/savings";
 import { SharesTab } from "@/components/unissaco/dashboard/tabs/shares";
+import { LoansTab } from "@/components/unissaco/dashboard/tabs/loans";
 import { InvestmentsTab } from "@/components/unissaco/dashboard/tabs/investments";
 import { ReportsTab } from "@/components/unissaco/dashboard/tabs/reports";
 import { ProfileTab } from "@/components/unissaco/dashboard/tabs/profile";
@@ -21,6 +23,7 @@ const NAV: NavItem[] = [
   { key: "overview", label: "Overview", icon: LayoutDashboard },
   { key: "savings", label: "Savings", icon: PiggyBank },
   { key: "shares", label: "Shares", icon: TrendingUp },
+  { key: "loans", label: "Loans", icon: Landmark },
   { key: "investments", label: "Investments", icon: Sprout },
   { key: "reports", label: "Reports", icon: FileText },
   { key: "profile", label: "Profile", icon: UserCircle },
@@ -41,6 +44,7 @@ export function MemberDashboard() {
       {dashboardTab === "overview" && <OverviewTab />}
       {dashboardTab === "savings" && <SavingsTab />}
       {dashboardTab === "shares" && <SharesTab />}
+      {dashboardTab === "loans" && <LoansTab />}
       {dashboardTab === "investments" && <InvestmentsTab />}
       {dashboardTab === "reports" && <ReportsTab />}
       {dashboardTab === "profile" && <ProfileTab />}

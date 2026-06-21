@@ -2,12 +2,12 @@
 // Prisma schema (SQLite adapter; designed to map cleanly to PostgreSQL in production)
 
 generator client {
-  provider = "prisma-client-js"
+    provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+    provider = "postgresql"
+    url      = env("DATABASE_URL")
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -15,46 +15,49 @@ datasource db {
 // ────────────────────────────────────────────────────────────────────────────
 
 model User {
-  id            String  @id @default(cuid())
-  email         String  @unique
-  passwordHash  String
-  // Role: MEMBER | ADMIN | SUPER_ADMIN
-  role          String  @default("MEMBER")
-  // Member status: PENDING | ACTIVE | SUSPENDED | CLOSED
-  status        String  @default("PENDING")
-  emailVerified Boolean @default(false)
+    id            String  @id @default(cuid())
+    email         String  @unique
+    passwordHash  String
+    // Role: MEMBER | ADMIN | SUPER_ADMIN
+    role          String  @default("MEMBER")
+    // Member status: PENDING | ACTIVE | SUSPENDED | CLOSED
+    status        String  @default("PENDING")
+    emailVerified Boolean @default(false)
 
-  // Profile fields
-  fullName       String?
-  studentId      String?   @unique
-  phone          String?
-  program        String?
-  yearOfStudy    String?
-  gender         String?
-  dateOfBirth    DateTime?
-  address        String?
-  nextOfKin      String?
-  nextOfKinPhone String?
-  avatarUrl      String?
+    // Profile fields
+    fullName       String?
+    studentId      String?   @unique
+    phone          String?
+    program        String?
+    yearOfStudy    String?
+    gender         String?
+    dateOfBirth    DateTime?
+    address        String?
+    nextOfKin      String?
+    nextOfKinPhone String?
+    avatarUrl      String?
 
-  joinedAt     DateTime  @default(now())
-  approvedAt   DateTime?
-  approvedById String?
-  suspendedAt  DateTime?
+    joinedAt     DateTime  @default(now())
+    approvedAt   DateTime?
+    approvedById String?
+    suspendedAt  DateTime?
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
 
-  // Relations
-  savingsAccount SavingsAccount?
-  shareHoldings  ShareHolding?
-  savingsTxns    SavingsTransaction[]
-  shareTxns      ShareTransaction[]
-  investments    InvestmentMember[]
-  auditLogs      AuditLog[]
+    // Relations
+    savingsAccount   SavingsAccount?
+    shareHoldings    ShareHolding?
+    savingsTxns      SavingsTransaction[]
+    shareTxns        ShareTransaction[]
+    investments      InvestmentMember[]
+    auditLogs        AuditLog[]
+    loanApplications LoanApplication[] // loans this user applied for
+    loanApprovals    LoanApplication[]    @relation("LoanApprover") // loans this user approved
+    loanGuarantees   LoanGuarantor[]
 
-  @@index([status])
-  @@index([role])
+    @@index([status])
+    @@index([role])
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -62,40 +65,40 @@ model User {
 // ────────────────────────────────────────────────────────────────────────────
 
 model SavingsAccount {
-  id              String   @id @default(cuid())
-  userId          String   @unique
-  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  balance         Float    @default(0)
-  // interest accrued over time (compound, configurable)
-  interestAccrued Float    @default(0)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+    id              String   @id @default(cuid())
+    userId          String   @unique
+    user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+    balance         Float    @default(0)
+    // interest accrued over time (compound, configurable)
+    interestAccrued Float    @default(0)
+    createdAt       DateTime @default(now())
+    updatedAt       DateTime @updatedAt
 
-  transactions SavingsTransaction[]
+    transactions SavingsTransaction[]
 }
 
 model SavingsTransaction {
-  id           String         @id @default(cuid())
-  accountId    String
-  account      SavingsAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
-  userId       String
-  user         User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  // Type: DEPOSIT | WITHDRAWAL | ADJUSTMENT | INTEREST | DIVIDEND
-  type         String
-  amount       Float
-  balanceAfter Float
-  description  String
-  reference    String         @unique
-  // channel/method: MOBILE_MONEY | BANK | CASH | SYSTEM
-  method       String         @default("SYSTEM")
-  status       String         @default("COMPLETED") // COMPLETED | PENDING | REVERSED
-  recordedById String?
-  createdAt    DateTime       @default(now())
+    id           String         @id @default(cuid())
+    accountId    String
+    account      SavingsAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+    userId       String
+    user         User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+    // Type: DEPOSIT | WITHDRAWAL | ADJUSTMENT | INTEREST | DIVIDEND | LOAN_DISBURSEMENT | LOAN_REPAYMENT
+    type         String
+    amount       Float
+    balanceAfter Float
+    description  String
+    reference    String         @unique
+    // channel/method: MOBILE_MONEY | BANK | CASH | SYSTEM
+    method       String         @default("SYSTEM")
+    status       String         @default("COMPLETED") // COMPLETED | PENDING | REVERSED
+    recordedById String?
+    createdAt    DateTime       @default(now())
 
-  @@index([userId])
-  @@index([accountId])
-  @@index([type])
-  @@index([createdAt])
+    @@index([userId])
+    @@index([accountId])
+    @@index([type])
+    @@index([createdAt])
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -103,36 +106,36 @@ model SavingsTransaction {
 // ────────────────────────────────────────────────────────────────────────────
 
 model ShareHolding {
-  id             String   @id @default(cuid())
-  userId         String   @unique
-  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  numberOfShares Int      @default(0)
-  totalValue     Float    @default(0)
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+    id             String   @id @default(cuid())
+    userId         String   @unique
+    user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+    numberOfShares Int      @default(0)
+    totalValue     Float    @default(0)
+    createdAt      DateTime @default(now())
+    updatedAt      DateTime @updatedAt
 
-  transactions ShareTransaction[]
+    transactions ShareTransaction[]
 }
 
 model ShareTransaction {
-  id             String       @id @default(cuid())
-  holdingId      String
-  holding        ShareHolding @relation(fields: [holdingId], references: [id], onDelete: Cascade)
-  userId         String
-  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  // Type: BUY | SELL | ALLOTMENT
-  type           String
-  numberOfShares Int
-  pricePerShare  Float
-  totalAmount    Float
-  sharesAfter    Int
-  reference      String       @unique
-  status         String       @default("COMPLETED")
-  createdAt      DateTime     @default(now())
+    id             String       @id @default(cuid())
+    holdingId      String
+    holding        ShareHolding @relation(fields: [holdingId], references: [id], onDelete: Cascade)
+    userId         String
+    user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+    // Type: BUY | SELL | ALLOTMENT
+    type           String
+    numberOfShares Int
+    pricePerShare  Float
+    totalAmount    Float
+    sharesAfter    Int
+    reference      String       @unique
+    status         String       @default("COMPLETED")
+    createdAt      DateTime     @default(now())
 
-  @@index([userId])
-  @@index([holdingId])
-  @@index([createdAt])
+    @@index([userId])
+    @@index([holdingId])
+    @@index([createdAt])
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -140,43 +143,143 @@ model ShareTransaction {
 // ────────────────────────────────────────────────────────────────────────────
 
 model Investment {
-  id             String    @id @default(cuid())
-  name           String
-  category       String // AGRICULTURE | STUDENT_VENTURE | FIXED_INCOME | REAL_ESTATE | OTHER
-  description    String
-  amountInvested Float
-  expectedROI    Float     @default(0) // percentage
-  actualProfit   Float     @default(0)
-  // Status: PROPOSED | ACTIVE | MATURED | CLOSED | CANCELLED
-  status         String    @default("PROPOSED")
-  startDate      DateTime
-  endDate        DateTime?
-  imageUrl       String?
-  createdBy      String?
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
+    id             String    @id @default(cuid())
+    name           String
+    category       String // AGRICULTURE | STUDENT_VENTURE | FIXED_INCOME | REAL_ESTATE | OTHER
+    description    String
+    amountInvested Float
+    expectedROI    Float     @default(0) // percentage
+    actualProfit   Float     @default(0)
+    // Status: PROPOSED | ACTIVE | MATURED | CLOSED | CANCELLED
+    status         String    @default("PROPOSED")
+    startDate      DateTime
+    endDate        DateTime?
+    imageUrl       String?
+    createdBy      String?
+    createdAt      DateTime  @default(now())
+    updatedAt      DateTime  @updatedAt
 
-  members InvestmentMember[]
+    members InvestmentMember[]
 
-  @@index([status])
-  @@index([category])
+    @@index([status])
+    @@index([category])
 }
 
 model InvestmentMember {
-  id                String     @id @default(cuid())
-  investmentId      String
-  investment        Investment @relation(fields: [investmentId], references: [id], onDelete: Cascade)
-  userId            String
-  user              User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  amountContributed Float
-  sharePct          Float      @default(0) // share of total investment
-  expectedReturn    Float      @default(0)
-  actualReturn      Float      @default(0)
-  createdAt         DateTime   @default(now())
-  updatedAt         DateTime   @updatedAt
+    id                String     @id @default(cuid())
+    investmentId      String
+    investment        Investment @relation(fields: [investmentId], references: [id], onDelete: Cascade)
+    userId            String
+    user              User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+    amountContributed Float
+    sharePct          Float      @default(0) // share of total investment
+    expectedReturn    Float      @default(0)
+    actualReturn      Float      @default(0)
+    createdAt         DateTime   @default(now())
+    updatedAt         DateTime   @updatedAt
 
-  @@unique([investmentId, userId])
-  @@index([userId])
+    @@unique([investmentId, userId])
+    @@index([userId])
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// MODULE 6: Loans Management
+// ────────────────────────────────────────────────────────────────────────────
+
+model LoanProduct {
+    id                 String   @id @default(cuid())
+    name               String
+    description        String
+    minAmount          Float    @default(0)
+    maxAmount          Float
+    interestRate       Float // % per annum
+    repaymentPeriod    Int // months
+    processingFee      Float    @default(0) // percentage or flat
+    latePaymentPenalty Float    @default(0) // % per month overdue
+    requiresGuarantor  Boolean  @default(false)
+    minGuarantors      Int      @default(0)
+    // Status: ACTIVE | INACTIVE
+    status             String   @default("ACTIVE")
+    createdAt          DateTime @default(now())
+    updatedAt          DateTime @updatedAt
+
+    applications LoanApplication[]
+
+    @@index([status])
+}
+
+model LoanApplication {
+    id                 String      @id @default(cuid())
+    userId             String
+    user               User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+    productId          String
+    product            LoanProduct @relation(fields: [productId], references: [id])
+    // Application details
+    amountApplied      Float
+    amountApproved     Float?
+    interestRate       Float // locked at approval time
+    repaymentPeriod    Int // months, locked at approval
+    monthlyInstallment Float?
+    totalRepayable     Float?
+    purpose            String
+    // Status: PENDING | APPROVED | REJECTED | DISBURSED | CLOSED | DEFAULTED
+    status             String      @default("PENDING")
+    applicationDate    DateTime    @default(now())
+    approvedAt         DateTime?
+    approvedById       String?
+    approvedBy         User?       @relation("LoanApprover", fields: [approvedById], references: [id])
+    rejectionReason    String?
+    disbursedAt        DateTime?
+    disbursedById      String?
+    closedAt           DateTime?
+    balance            Float       @default(0)
+    createdAt          DateTime    @default(now())
+    updatedAt          DateTime    @updatedAt
+
+    repayments LoanRepayment[]
+    guarantors LoanGuarantor[]
+
+    @@index([userId])
+    @@index([status])
+    @@index([productId])
+}
+
+model LoanRepayment {
+    id               String          @id @default(cuid())
+    loanId           String
+    loan             LoanApplication @relation(fields: [loanId], references: [id], onDelete: Cascade)
+    amount           Float
+    principalPortion Float           @default(0)
+    interestPortion  Float           @default(0)
+    balanceAfter     Float
+    dueDate          DateTime
+    paidDate         DateTime?
+    // Status: PENDING | PAID | PARTIAL | OVERDUE
+    status           String          @default("PENDING")
+    reference        String          @unique
+    method           String          @default("SYSTEM")
+    recordedById     String?
+    createdAt        DateTime        @default(now())
+
+    @@index([loanId])
+    @@index([status])
+    @@index([dueDate])
+}
+
+model LoanGuarantor {
+    id               String          @id @default(cuid())
+    loanId           String
+    loan             LoanApplication @relation(fields: [loanId], references: [id], onDelete: Cascade)
+    userId           String
+    user             User            @relation(fields: [userId], references: [id])
+    amountGuaranteed Float
+    // Status: PENDING | APPROVED | REJECTED
+    status           String          @default("PENDING")
+    approvedAt       DateTime?
+    createdAt        DateTime        @default(now())
+
+    @@unique([loanId, userId])
+    @@index([userId])
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -184,24 +287,24 @@ model InvestmentMember {
 // ────────────────────────────────────────────────────────────────────────────
 
 model Setting {
-  id        String   @id
-  value     String
-  // Common keys: SHARE_PRICE, SAVINGS_INTEREST_RATE, MIN_SAVINGS, DIVIDEND_RATE
-  updatedAt DateTime @updatedAt
+    id        String   @id
+    value     String
+    // Common keys: SHARE_PRICE, SAVINGS_INTEREST_RATE, MIN_SAVINGS, DIVIDEND_RATE
+    updatedAt DateTime @updatedAt
 }
 
 model AuditLog {
-  id        String   @id @default(cuid())
-  userId    String?
-  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
-  action    String // e.g. LOGIN, DEPOSIT, SHARE_BUY, MEMBER_APPROVE
-  entity    String // e.g. SavingsTransaction, User
-  entityId  String?
-  details   String
-  ipAddress String?
-  createdAt DateTime @default(now())
+    id        String   @id @default(cuid())
+    userId    String?
+    user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+    action    String // e.g. LOGIN, DEPOSIT, SHARE_BUY, MEMBER_APPROVE, LOAN_APPLY, LOAN_APPROVE, LOAN_DISBURSE, LOAN_REPAY
+    entity    String // e.g. SavingsTransaction, User, LoanApplication, LoanRepayment
+    entityId  String?
+    details   String
+    ipAddress String?
+    createdAt DateTime @default(now())
 
-  @@index([userId])
-  @@index([action])
-  @@index([createdAt])
+    @@index([userId])
+    @@index([action])
+    @@index([createdAt])
 }

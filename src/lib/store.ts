@@ -12,11 +12,12 @@ export type DashboardTab =
   | "overview"
   | "savings"
   | "shares"
+  | "loans"
   | "investments"
   | "reports"
   | "profile";
 
-export type AdminTab = "overview" | "members" | "transactions" | "audit";
+export type AdminTab = "overview" | "members" | "loans" | "transactions" | "audit";
 
 interface AppState {
   user: ApiUser | null;

@@ -18,6 +18,10 @@ async function main() {
   console.log("🌱 Seeding UNISSACO database...");
 
   // Wipe (order matters for FK)
+  await db.loanRepayment.deleteMany();
+  await db.loanGuarantor.deleteMany();
+  await db.loanApplication.deleteMany();
+  await db.loanProduct.deleteMany();
   await db.auditLog.deleteMany();
   await db.investmentMember.deleteMany();
   await db.investment.deleteMany();
@@ -44,6 +48,67 @@ async function main() {
     },
   });
   console.log(`  ✓ Admin created: ${admin.email}`);
+
+  // ── Loan Products ───────────────────────────────────────────────────────
+  const loanProducts = [
+    {
+      name: "Standard Student Loan",
+      description: "General purpose loan for tuition, books, and living expenses with competitive interest.",
+      minAmount: 10000,
+      maxAmount: 200000,
+      interestRate: 15,
+      repaymentPeriod: 12,
+      processingFee: 2,
+      latePaymentPenalty: 3,
+      requiresGuarantor: true,
+      minGuarantors: 1,
+      status: "ACTIVE",
+    },
+    {
+      name: "Emergency Loan",
+      description: "Quick-access loan for urgent medical or family emergencies. Fast approval.",
+      minAmount: 5000,
+      maxAmount: 50000,
+      interestRate: 10,
+      repaymentPeriod: 6,
+      processingFee: 1,
+      latePaymentPenalty: 2,
+      requiresGuarantor: false,
+      minGuarantors: 0,
+      status: "ACTIVE",
+    },
+    {
+      name: "Business Startup Loan",
+      description: "For student entrepreneurs looking to start or grow a small business on campus.",
+      minAmount: 25000,
+      maxAmount: 500000,
+      interestRate: 18,
+      repaymentPeriod: 24,
+      processingFee: 2.5,
+      latePaymentPenalty: 4,
+      requiresGuarantor: true,
+      minGuarantors: 2,
+      status: "ACTIVE",
+    },
+    {
+      name: "Academic Support Loan",
+      description: "Low-interest loan specifically for tuition fees and academic materials.",
+      minAmount: 20000,
+      maxAmount: 300000,
+      interestRate: 8,
+      repaymentPeriod: 18,
+      processingFee: 1,
+      latePaymentPenalty: 2,
+      requiresGuarantor: false,
+      minGuarantors: 0,
+      status: "ACTIVE",
+    },
+  ];
+
+  for (const lp of loanProducts) {
+    await db.loanProduct.create({ data: lp });
+  }
+  console.log(`  ✓ ${loanProducts.length} loan products created`);
 
   // ── Investments (real cooperative ventures) ─────────────────────────────
   const investments = [
@@ -119,7 +184,7 @@ async function main() {
       action: "SYSTEM",
       entity: "System",
       entityId: null,
-      details: "Database seeded with admin account and investments",
+      details: "Database seeded with admin account, loan products, and investments",
       createdAt: new Date(),
     },
   });
@@ -129,6 +194,12 @@ async function main() {
   console.log("Admin account:");
   console.log("  Email   : admin@unissacco.ac.mw");
   console.log("  Password: Admin@123");
+  console.log("");
+  console.log("Loan products created:");
+  console.log("  - Standard Student Loan (15%, 12mo, MK 10K-200K)");
+  console.log("  - Emergency Loan (10%, 6mo, MK 5K-50K)");
+  console.log("  - Business Startup Loan (18%, 24mo, MK 25K-500K)");
+  console.log("  - Academic Support Loan (8%, 18mo, MK 20K-300K)");
   console.log("");
   console.log("Members can register via the app and will be approved by the admin.");
 }
