@@ -18,6 +18,8 @@ async function main() {
   console.log("🌱 Seeding UNISSACO database...");
 
   // Wipe (order matters for FK)
+  await db.dividendPayout.deleteMany();
+  await db.dividendDeclaration.deleteMany();
   await db.loanRepayment.deleteMany();
   await db.loanGuarantor.deleteMany();
   await db.loanApplication.deleteMany();
@@ -184,7 +186,7 @@ async function main() {
       action: "SYSTEM",
       entity: "System",
       entityId: null,
-      details: "Database seeded with admin account, loan products, and investments",
+      details: "Database seeded with admin account, loan products, investments, and dividend infrastructure",
       createdAt: new Date(),
     },
   });
@@ -200,6 +202,11 @@ async function main() {
   console.log("  - Emergency Loan (10%, 6mo, MK 5K-50K)");
   console.log("  - Business Startup Loan (18%, 24mo, MK 25K-500K)");
   console.log("  - Academic Support Loan (8%, 18mo, MK 20K-300K)");
+  console.log("");
+  console.log("Dividend Management: Ready");
+  console.log("  - Admin can declare dividends via the Dividends tab");
+  console.log("  - Payouts are auto-calculated based on shareholdings");
+  console.log("  - Members receive dividends directly to their savings accounts");
   console.log("");
   console.log("Members can register via the app and will be approved by the admin.");
 }

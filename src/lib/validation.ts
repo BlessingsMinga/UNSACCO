@@ -114,6 +114,19 @@ export const loanGuarantorSchema = z.object({
   amountGuaranteed: z.number().positive("Guaranteed amount must be greater than zero"),
 });
 
+// ── Dividend Schemas ──────────────────────────────────────────────────────
+
+export const dividendDeclarationSchema = z.object({
+  period: z.string().min(1, "Period is required (e.g. 2025-Q1)"),
+  label: z.string().min(3, "Label is required").max(120),
+  totalAmount: z.number().positive("Total amount must be greater than zero"),
+  notes: z.string().max(500).optional().default(""),
+});
+
+export const dividendPayoutSchema = z.object({
+  ratePerShare: z.number().positive("Rate per share must be greater than zero"),
+});
+
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
 export type LoanProductInput = z.infer<typeof loanProductSchema>;
@@ -121,3 +134,5 @@ export type LoanApplicationInput = z.infer<typeof loanApplicationSchema>;
 export type LoanApprovalInput = z.infer<typeof loanApprovalSchema>;
 export type LoanRepaymentInput = z.infer<typeof loanRepaymentSchema>;
 export type LoanGuarantorInput = z.infer<typeof loanGuarantorSchema>;
+export type DividendDeclarationInput = z.infer<typeof dividendDeclarationSchema>;
+export type DividendPayoutInput = z.infer<typeof dividendPayoutSchema>;

@@ -8,6 +8,7 @@ import {
   TrendingUp,
   Landmark,
   Sprout,
+  Gift,
   FileText,
   UserCircle,
 } from "lucide-react";
@@ -15,6 +16,7 @@ import { OverviewTab } from "@/components/unissaco/dashboard/tabs/overview";
 import { SavingsTab } from "@/components/unissaco/dashboard/tabs/savings";
 import { SharesTab } from "@/components/unissaco/dashboard/tabs/shares";
 import { LoansTab } from "@/components/unissaco/dashboard/tabs/loans";
+import { DividendsTab } from "@/components/unissaco/dashboard/tabs/dividends";
 import { InvestmentsTab } from "@/components/unissaco/dashboard/tabs/investments";
 import { ReportsTab } from "@/components/unissaco/dashboard/tabs/reports";
 import { ProfileTab } from "@/components/unissaco/dashboard/tabs/profile";
@@ -25,6 +27,7 @@ const NAV: NavItem[] = [
   { key: "shares", label: "Shares", icon: TrendingUp },
   { key: "loans", label: "Loans", icon: Landmark },
   { key: "investments", label: "Investments", icon: Sprout },
+  { key: "dividends", label: "Dividends", icon: Gift },
   { key: "reports", label: "Reports", icon: FileText },
   { key: "profile", label: "Profile", icon: UserCircle },
 ];
@@ -46,6 +49,7 @@ export function MemberDashboard() {
       {dashboardTab === "shares" && <SharesTab />}
       {dashboardTab === "loans" && <LoansTab />}
       {dashboardTab === "investments" && <InvestmentsTab />}
+      {dashboardTab === "dividends" && <DividendsTab />}
       {dashboardTab === "reports" && <ReportsTab />}
       {dashboardTab === "profile" && <ProfileTab />}
     </DashboardLayout>

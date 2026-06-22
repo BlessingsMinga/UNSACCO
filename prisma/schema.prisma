@@ -55,6 +55,7 @@ model User {
     loanApplications LoanApplication[] // loans this user applied for
     loanApprovals    LoanApplication[]    @relation("LoanApprover") // loans this user approved
     loanGuarantees   LoanGuarantor[]
+    dividends        DividendPayout[]
 
     @@index([status])
     @@index([role])
@@ -283,13 +284,61 @@ model LoanGuarantor {
 }
 
 // ────────────────────────────────────────────────────────────────────────────
+// MODULE 7: Dividend Management
+// ────────────────────────────────────────────────────────────────────────────
+
+model DividendDeclaration {
+    id             String    @id @default(cuid())
+    // Period: e.g. "2025-Q1" for first quarter, "2025-H1" for half-year, "2025" for annual
+    period         String    @unique
+    label          String // e.g. "First Quarter 2025 Dividend"
+    totalAmount    Float // total pool declared
+    ratePerShare   Float // MWK per share
+    eligibleShares Int // total eligible shares at declaration time
+    status         String    @default("DECLARED") // DECLARED | PAID_OUT | CANCELLED
+    declaredById   String?
+    declaredAt     DateTime  @default(now())
+    paidOutAt      DateTime?
+    notes          String?
+    createdAt      DateTime  @default(now())
+    updatedAt      DateTime  @updatedAt
+
+    payouts DividendPayout[]
+
+    @@index([status])
+    @@index([period])
+}
+
+model DividendPayout {
+    id               String              @id @default(cuid())
+    declarationId    String
+    declaration      DividendDeclaration @relation(fields: [declarationId], references: [id], onDelete: Cascade)
+    userId           String
+    user             User                @relation(fields: [userId], references: [id])
+    numberOfShares   Int // shares held at declaration
+    amountPerShare   Float // rate locked at declaration
+    totalAmount      Float // numberOfShares * amountPerShare
+    deductedAtSource Float               @default(0) // e.g. withholding tax
+    netAmount        Float // totalAmount - deductedAtSource
+    status           String              @default("PENDING") // PENDING | PAID | CANCELLED
+    paidAt           DateTime?
+    reference        String?
+    createdAt        DateTime            @default(now())
+
+    @@unique([declarationId, userId])
+    @@index([userId])
+    @@index([declarationId])
+    @@index([status])
+}
+
+// ────────────────────────────────────────────────────────────────────────────
 // SYSTEM: Settings + Audit
 // ────────────────────────────────────────────────────────────────────────────
 
 model Setting {
     id        String   @id
     value     String
-    // Common keys: SHARE_PRICE, SAVINGS_INTEREST_RATE, MIN_SAVINGS, DIVIDEND_RATE
+    // Common keys: SHARE_PRICE, SAVINGS_INTEREST_RATE, MIN_SAVINGS, DIVIDEND_RATE, DIVIDEND_TAX_RATE
     updatedAt DateTime @updatedAt
 }
 
@@ -297,8 +346,8 @@ model AuditLog {
     id        String   @id @default(cuid())
     userId    String?
     user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
-    action    String // e.g. LOGIN, DEPOSIT, SHARE_BUY, MEMBER_APPROVE, LOAN_APPLY, LOAN_APPROVE, LOAN_DISBURSE, LOAN_REPAY
-    entity    String // e.g. SavingsTransaction, User, LoanApplication, LoanRepayment
+    action    String // e.g. LOGIN, DEPOSIT, SHARE_BUY, MEMBER_APPROVE, LOAN_APPLY, LOAN_APPROVE, LOAN_DISBURSE, LOAN_REPAY, DIVIDEND_DECLARE, DIVIDEND_PAYOUT
+    entity    String // e.g. SavingsTransaction, User, LoanApplication, LoanRepayment, DividendDeclaration
     entityId  String?
     details   String
     ipAddress String?

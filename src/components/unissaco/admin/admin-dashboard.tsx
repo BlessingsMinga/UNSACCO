@@ -6,12 +6,14 @@ import {
   LayoutDashboard,
   Users,
   Landmark,
+  Gift,
   Receipt,
   ShieldCheck,
 } from "lucide-react";
 import { AdminOverviewTab } from "@/components/unissaco/admin/tabs/overview";
 import { AdminMembersTab } from "@/components/unissaco/admin/tabs/members";
 import { AdminLoansTab } from "@/components/unissaco/admin/tabs/loans";
+import { AdminDividendsTab } from "@/components/unissaco/admin/tabs/dividends";
 import { AdminTransactionsTab } from "@/components/unissaco/admin/tabs/transactions";
 import { AdminAuditTab } from "@/components/unissaco/admin/tabs/audit";
 
@@ -19,6 +21,7 @@ const NAV: NavItem[] = [
   { key: "overview", label: "Overview", icon: LayoutDashboard },
   { key: "members", label: "Members", icon: Users },
   { key: "loans", label: "Loans", icon: Landmark },
+  { key: "dividends", label: "Dividends", icon: Gift },
   { key: "transactions", label: "Transactions", icon: Receipt },
   { key: "audit", label: "Audit Log", icon: ShieldCheck },
 ];
@@ -38,6 +41,7 @@ export function AdminDashboard() {
       {adminTab === "overview" && <AdminOverviewTab />}
       {adminTab === "members" && <AdminMembersTab />}
       {adminTab === "loans" && <AdminLoansTab />}
+      {adminTab === "dividends" && <AdminDividendsTab />}
       {adminTab === "transactions" && <AdminTransactionsTab />}
       {adminTab === "audit" && <AdminAuditTab />}
     </DashboardLayout>

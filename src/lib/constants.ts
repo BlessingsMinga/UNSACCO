@@ -64,6 +64,10 @@ export const LOAN_LATE_PENALTY = 3; // % per month overdue
 export const LOAN_ELIGIBILITY_SAVINGS_RATIO = 0.3; // must have 30% of loan amount in savings
 export const LOAN_ELIGIBILITY_MIN_SAVINGS = 10000; // minimum savings to qualify
 
+// Dividend configuration
+export const DIVIDEND_TAX_RATE = 0; // % withholding tax (0 for now)
+export const DIVIDEND_MIN_SHARES = 1; // minimum shares to receive dividend
+
 export const MEMBER_STATUSES = ["PENDING", "ACTIVE", "SUSPENDED", "CLOSED"] as const;
 export const USER_ROLES = ["MEMBER", "ADMIN", "SUPER_ADMIN"] as const;
 export const SAVINGS_TXN_TYPES = ["DEPOSIT", "WITHDRAWAL", "ADJUSTMENT", "INTEREST", "DIVIDEND", "LOAN_DISBURSEMENT", "LOAN_REPAYMENT"] as const;
@@ -80,6 +84,8 @@ export const LOAN_STATUSES = ["PENDING", "APPROVED", "REJECTED", "DISBURSED", "C
 export const LOAN_PRODUCT_STATUSES = ["ACTIVE", "INACTIVE"] as const;
 export const LOAN_REPAYMENT_STATUSES = ["PENDING", "PAID", "PARTIAL", "OVERDUE"] as const;
 export const LOAN_GUARANTOR_STATUSES = ["PENDING", "APPROVED", "REJECTED"] as const;
+export const DIVIDEND_DECLARATION_STATUSES = ["DECLARED", "PAID_OUT", "CANCELLED"] as const;
+export const DIVIDEND_PAYOUT_STATUSES = ["PENDING", "PAID", "CANCELLED"] as const;
 
 export type MemberStatus = (typeof MEMBER_STATUSES)[number];
 export type UserRole = (typeof USER_ROLES)[number];
@@ -91,6 +97,8 @@ export type LoanStatus = (typeof LOAN_STATUSES)[number];
 export type LoanProductStatus = (typeof LOAN_PRODUCT_STATUSES)[number];
 export type LoanRepaymentStatus = (typeof LOAN_REPAYMENT_STATUSES)[number];
 export type LoanGuarantorStatus = (typeof LOAN_GUARANTOR_STATUSES)[number];
+export type DividendDeclarationStatus = (typeof DIVIDEND_DECLARATION_STATUSES)[number];
+export type DividendPayoutStatus = (typeof DIVIDEND_PAYOUT_STATUSES)[number];
 
 export const STATUS_COLORS: Record<string, string> = {
   PENDING: "bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-400",
@@ -108,4 +116,6 @@ export const STATUS_COLORS: Record<string, string> = {
   PARTIAL: "bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-400",
   OVERDUE: "bg-red-100 text-red-700 dark:bg-red-500/15 dark:text-red-400",
   INACTIVE: "bg-zinc-100 text-zinc-600 dark:bg-zinc-500/15 dark:text-zinc-400",
+  DECLARED: "bg-violet-100 text-violet-700 dark:bg-violet-500/15 dark:text-violet-400",
+  PAID_OUT: "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400",
 };
