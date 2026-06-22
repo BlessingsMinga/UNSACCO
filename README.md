@@ -1,10 +1,10 @@
 # UNSACCO — University Student Savings & Investment Cooperative
 
-A modern digital cooperative platform built for university students to **save**, **invest in shares**, **participate in pooled investments**, and **access affordable loans** — all in one place.
+A modern digital cooperative platform built for university students to **save**, **invest in shares**, **participate in pooled investments**, and **access affordable loans** all in one place.
 
 ## Overview
 
-UNSACCO digitises the traditional SACCO (Savings and Credit Cooperative) model for the university environment. Students can register, build a savings history, purchase shares in the cooperative, contribute to investment opportunities, and apply for loan products — all through a modern web interface.
+UNSACCO digitises the traditional SACCO (Savings and Credit Cooperative) model for the university environment. Students can register, build a savings history, purchase shares in the cooperative, contribute to investment opportunities, and apply for loan products all through a modern web interface.
 
 The system is built as a full-stack **Next.js** application with a **PostgreSQL** database and a **Prisma** ORM layer.
 
@@ -131,28 +131,4 @@ The schema is defined in `prisma/schema.prisma` and covers the following models:
 - **Audit Trail**: Every critical action (login, deposit, loan approval, share purchase, etc.) is logged to the `AuditLog` table for full traceability
 - **Loan Guarantor System**: Supports multi-guarantor loan applications with approval workflow
 
-## Project Structure
-
-```
-UNSACCO/
-├── prisma/
-│   └── schema.prisma          # Database schema
-├── public/                    # Static assets
-├── scripts/                   # Utility and build scripts
-├── src/
-│   ├── app/
-│   │   ├── api/               # API route handlers
-│   │   ├── globals.css        # Global styles
-│   │   ├── layout.tsx         # Root layout
-│   │   └── page.tsx           # Landing / homepage
-│   ├── components/
-│   │   ├── ui/                # shadcn/ui primitives
-│   │   └── unissaco/          # Domain-specific components
-│   ├── hooks/                 # Custom React hooks
-│   └── lib/                   # Utilities, API client, auth, store, validation
-├── .env.example
-├── next.config.ts
-├── tailwind.config.ts
-├── tsconfig.json
-└── package.json
 ```
