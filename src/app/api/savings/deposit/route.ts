@@ -2,6 +2,7 @@ import { db } from "@/lib/db";
 import { requireAuth, audit } from "@/lib/auth";
 import { depositSchema } from "@/lib/validation";
 import { ok, fail, handleApiError, parseBody, generateReference } from "@/lib/api";
+import { createNotification } from "@/lib/notifications/create";
 
 export const runtime = "nodejs";
 
@@ -36,6 +37,15 @@ export async function POST(req: Request) {
     });
 
     await audit(user.id, "DEPOSIT", "SavingsTransaction", result.txn.id, `Deposit ${data.amount}`);
+
+    await createNotification({
+      userId: user.id,
+      type: "DEPOSIT",
+      title: "Savings Deposit",
+      message: `MK ${data.amount.toLocaleString()} deposited into your savings account. New balance: MK ${result.balanceAfter.toLocaleString()}.`,
+      link: "/savings",
+      entityId: result.txn.id,
+    });
 
     return ok({
       transaction: result.txn,

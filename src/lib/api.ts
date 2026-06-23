@@ -32,10 +32,14 @@ export function handleApiError(error: unknown) {
     if (error.message === "UNAUTHORIZED") return unauthorized();
     if (error.message === "FORBIDDEN") return forbidden();
     if (error.message === "NOT_FOUND") return notFound();
-    // Zod-style error?
-    const zodErr = (error as { errors?: unknown }).errors;
-    if (zodErr) {
-      return fail("Validation failed", 422, { details: zodErr });
+    // Zod error detection - handle both Zod v3/v4 error shapes
+    const zodErr = (error as { errors?: unknown; issues?: unknown }).errors ?? (error as { issues?: unknown }).issues;
+    if (zodErr && Array.isArray(zodErr)) {
+      const details = zodErr.map((e: { path?: (string | number)[]; message?: string }) => ({
+        field: e.path?.join(".") ?? "unknown",
+        message: e.message ?? "Invalid value",
+      }));
+      return fail("Validation failed", 422, { details });
     }
     return fail(error.message || "Something went wrong", 400);
   }

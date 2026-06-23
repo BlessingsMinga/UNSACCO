@@ -104,6 +104,16 @@ export const loanApprovalSchema = z.object({
   rejectionReason: z.string().max(300).optional(),
 });
 
+export const loanDisbursalSchema = z.object({
+  action: z.literal("disburse"),
+});
+
+export const adminLoanActionSchema = z.discriminatedUnion("action", [
+  z.object({ action: z.literal("approve"), loanId: z.string().min(1), amountApproved: z.number().positive().optional(), rejectionReason: z.string().max(300).optional() }),
+  z.object({ action: z.literal("reject"), loanId: z.string().min(1), rejectionReason: z.string().max(300).optional() }),
+  z.object({ action: z.literal("disburse"), loanId: z.string().min(1) }),
+]);
+
 export const loanRepaymentSchema = z.object({
   amount: z.number().positive("Repayment amount must be greater than zero"),
   method: z.enum(["MOBILE_MONEY", "BANK", "CASH", "SYSTEM"]).default("MOBILE_MONEY"),
@@ -112,6 +122,11 @@ export const loanRepaymentSchema = z.object({
 export const loanGuarantorSchema = z.object({
   userId: z.string().min(1, "Guarantor is required"),
   amountGuaranteed: z.number().positive("Guaranteed amount must be greater than zero"),
+});
+
+export const loanGuarantorActionSchema = z.object({
+  guarantorId: z.string().min(1, "Guarantor ID is required"),
+  action: z.enum(["approve", "reject"]),
 });
 
 // ── Dividend Schemas ──────────────────────────────────────────────────────
@@ -124,7 +139,7 @@ export const dividendDeclarationSchema = z.object({
 });
 
 export const dividendPayoutSchema = z.object({
-  ratePerShare: z.number().positive("Rate per share must be greater than zero"),
+  declarationId: z.string().min(1, "Declaration ID is required"),
 });
 
 export type RegisterInput = z.infer<typeof registerSchema>;
@@ -132,7 +147,9 @@ export type LoginInput = z.infer<typeof loginSchema>;
 export type LoanProductInput = z.infer<typeof loanProductSchema>;
 export type LoanApplicationInput = z.infer<typeof loanApplicationSchema>;
 export type LoanApprovalInput = z.infer<typeof loanApprovalSchema>;
+export type AdminLoanActionInput = z.infer<typeof adminLoanActionSchema>;
 export type LoanRepaymentInput = z.infer<typeof loanRepaymentSchema>;
 export type LoanGuarantorInput = z.infer<typeof loanGuarantorSchema>;
+export type LoanGuarantorActionInput = z.infer<typeof loanGuarantorActionSchema>;
 export type DividendDeclarationInput = z.infer<typeof dividendDeclarationSchema>;
 export type DividendPayoutInput = z.infer<typeof dividendPayoutSchema>;

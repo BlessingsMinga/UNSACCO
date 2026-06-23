@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { api, ApiError } from "@/lib/api-client";
-import { formatCurrency, formatDate, formatDateTime, STATUS_COLORS } from "@/lib/constants";
+import { formatCurrency, formatDate, STATUS_COLORS } from "@/lib/constants";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -56,7 +56,8 @@ export function AdminDividendsTab() {
   const [declarations, setDeclarations] = useState<DividendDeclaration[]>([]);
   const [loading, setLoading] = useState(true);
   const [declareOpen, setDeclareOpen] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
+  const [declaring, setDeclaring] = useState(false);
+  const [payingOutId, setPayingOutId] = useState<string | null>(null);
 
   // Declare form
   const [period, setPeriod] = useState("");
@@ -84,7 +85,7 @@ export function AdminDividendsTab() {
       toast.error("Please fill in all required fields");
       return;
     }
-    setSubmitting(true);
+    setDeclaring(true);
     try {
       const res = await api.post<{ declaration: DividendDeclaration; totalEligibleShares: number; ratePerShare: number; memberCount: number }>(
         "/api/dividends/declare",
@@ -100,12 +101,12 @@ export function AdminDividendsTab() {
     } catch (e) {
       toast.error(e instanceof ApiError ? e.message : "Failed to declare dividend");
     } finally {
-      setSubmitting(false);
+      setDeclaring(false);
     }
   };
 
   const handlePayout = async (declarationId: string) => {
-    setSubmitting(true);
+    setPayingOutId(declarationId);
     try {
       const res = await api.post<{ message: string; processedCount: number; totalPaid: number }>(
         "/api/dividends/payout",
@@ -116,7 +117,7 @@ export function AdminDividendsTab() {
     } catch (e) {
       toast.error(e instanceof ApiError ? e.message : "Payout failed");
     } finally {
-      setSubmitting(false);
+      setPayingOutId(null);
     }
   };
 
@@ -200,9 +201,9 @@ export function AdminDividendsTab() {
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setDeclareOpen(false)}>Cancel</Button>
-              <Button onClick={handleDeclare} disabled={submitting}>
-                {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Declare & Create Payouts
+                <Button onClick={handleDeclare} disabled={declaring}>
+                  {declaring && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Declare & Create Payouts
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -242,16 +243,16 @@ export function AdminDividendsTab() {
                 <div className="text-right space-y-2">
                   <p className="text-lg font-bold text-emerald-600">{formatCurrency(d.paidAmount)}</p>
                   <p className="text-xs text-muted-foreground">paid out</p>
-                  {d.status === "DECLARED" && (
-                    <Button
-                      size="sm"
-                      onClick={() => handlePayout(d.id)}
-                      disabled={submitting}
-                    >
-                      {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Banknote className="h-4 w-4 mr-1" />}
-                      Process Payout
-                    </Button>
-                  )}
+                    {d.status === "DECLARED" && (
+                      <Button
+                        size="sm"
+                        onClick={() => handlePayout(d.id)}
+                        disabled={payingOutId === d.id}
+                      >
+                        {payingOutId === d.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Banknote className="h-4 w-4 mr-1" />}
+                        Process Payout
+                      </Button>
+                    )}
                 </div>
               </div>
             </Card>

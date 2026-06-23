@@ -179,6 +179,34 @@ async function main() {
   }
   console.log(`  ✓ ${investments.length} investments created`);
 
+  // ── System Settings ─────────────────────────────────────────────────────
+  const settings = [
+    { id: "SHARE_PRICE", value: "5000" },
+    { id: "SAVINGS_INTEREST_RATE", value: "8" },
+    { id: "MIN_SAVINGS", value: "1000" },
+    { id: "DIVIDEND_RATE", value: "0" },
+    { id: "DIVIDEND_TAX_RATE", value: "0" },
+    { id: "MEMBERSHIP_FEE", value: "2000" },
+    { id: "LOAN_INTEREST_RATE", value: "15" },
+    { id: "LOAN_MAX_AMOUNT", value: "200000" },
+    { id: "LOAN_MAX_PERIOD", value: "12" },
+    { id: "LOAN_PROCESSING_FEE", value: "2" },
+    { id: "LOAN_LATE_PENALTY", value: "3" },
+    { id: "LOAN_ELIGIBILITY_SAVINGS_RATIO", value: "0.3" },
+    { id: "LOAN_ELIGIBILITY_MIN_SAVINGS", value: "10000" },
+    { id: "MIN_SHARES", value: "1" },
+    { id: "MIN_SHAREHOLDING_FOR_LOAN", value: "10" },
+  ];
+
+  for (const s of settings) {
+    await db.setting.upsert({
+      where: { id: s.id },
+      update: { value: s.value },
+      create: { id: s.id, value: s.value },
+    });
+  }
+  console.log(`  ✓ ${settings.length} system settings configured`);
+
   // ── Audit log ───────────────────────────────────────────────────────────
   await db.auditLog.create({
     data: {

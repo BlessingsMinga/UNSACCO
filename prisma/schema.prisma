@@ -46,16 +46,18 @@ model User {
     updatedAt DateTime @updatedAt
 
     // Relations
-    savingsAccount   SavingsAccount?
-    shareHoldings    ShareHolding?
-    savingsTxns      SavingsTransaction[]
-    shareTxns        ShareTransaction[]
-    investments      InvestmentMember[]
-    auditLogs        AuditLog[]
-    loanApplications LoanApplication[] // loans this user applied for
-    loanApprovals    LoanApplication[]    @relation("LoanApprover") // loans this user approved
-    loanGuarantees   LoanGuarantor[]
-    dividends        DividendPayout[]
+    savingsAccount          SavingsAccount?
+    shareHoldings           ShareHolding?
+    savingsTxns             SavingsTransaction[]
+    shareTxns               ShareTransaction[]
+    investments             InvestmentMember[]
+    auditLogs               AuditLog[]
+    loanApplications        LoanApplication[] // loans this user applied for
+    loanApprovals           LoanApplication[]       @relation("LoanApprover") // loans this user approved
+    loanGuarantees          LoanGuarantor[]
+    dividends               DividendPayout[]
+    notifications           Notification[]
+    notificationPreferences NotificationPreference?
 
     @@index([status])
     @@index([role])
@@ -329,6 +331,54 @@ model DividendPayout {
     @@index([userId])
     @@index([declarationId])
     @@index([status])
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// MODULE 8: In-App Notifications
+// ────────────────────────────────────────────────────────────────────────────
+
+model Notification {
+    id        String    @id @default(cuid())
+    userId    String
+    user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+    // Type: DEPOSIT | WITHDRAWAL | SHARE_PURCHASE | LOAN_APPLIED | LOAN_APPROVED | LOAN_REJECTED | LOAN_DISBURSED | LOAN_REPAYMENT | DIVIDEND | MEMBER_APPROVED | MEMBER_SUSPENDED | MEMBER_CLOSED | GUARANTOR_REQUEST | GUARANTOR_CONFIRMED | SYSTEM
+    type      String
+    title     String
+    message   String
+    // Link to navigate to when clicked (e.g. "/savings", "/loans")
+    link      String?
+    // Related entity reference for grouping
+    entityId  String?
+    read      Boolean   @default(false)
+    readAt    DateTime?
+    createdAt DateTime  @default(now())
+
+    @@index([userId, read])
+    @@index([userId, createdAt])
+    @@index([type])
+}
+
+model NotificationPreference {
+    id                 String   @id @default(cuid())
+    userId             String   @unique
+    user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+    deposit            Boolean  @default(true)
+    withdrawal         Boolean  @default(true)
+    sharePurchase      Boolean  @default(true)
+    loanApplied        Boolean  @default(true)
+    loanApproved       Boolean  @default(true)
+    loanRejected       Boolean  @default(true)
+    loanDisbursed      Boolean  @default(true)
+    loanRepayment      Boolean  @default(true)
+    dividend           Boolean  @default(true)
+    memberApproved     Boolean  @default(true)
+    memberSuspended    Boolean  @default(true)
+    memberClosed       Boolean  @default(true)
+    guarantorRequest   Boolean  @default(true)
+    guarantorConfirmed Boolean  @default(true)
+    system             Boolean  @default(true)
+    createdAt          DateTime @default(now())
+    updatedAt          DateTime @updatedAt
 }
 
 // ────────────────────────────────────────────────────────────────────────────

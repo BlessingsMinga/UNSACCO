@@ -1,14 +1,15 @@
 import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
 import { requireAdmin, audit } from "@/lib/auth";
-import { ok, fail, handleApiError, generateReference } from "@/lib/api";
+import { ok, fail, handleApiError, parseBody, generateReference } from "@/lib/api";
+import { dividendPayoutSchema } from "@/lib/validation";
 
 // Admin processes payout for a declaration - credits all members' savings
 export async function POST(req: NextRequest) {
   try {
     const admin = await requireAdmin();
-    const body = await req.json();
-    const { declarationId } = body;
+    const data = await parseBody(req, dividendPayoutSchema);
+    const { declarationId } = data;
 
     if (!declarationId) return fail("declarationId is required");
 

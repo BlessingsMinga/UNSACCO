@@ -2,6 +2,7 @@ import { db } from "@/lib/db";
 import { requireAuth, audit } from "@/lib/auth";
 import { withdrawalSchema } from "@/lib/validation";
 import { ok, fail, handleApiError, parseBody, generateReference } from "@/lib/api";
+import { createNotification } from "@/lib/notifications/create";
 
 export const runtime = "nodejs";
 
@@ -39,6 +40,15 @@ export async function POST(req: Request) {
     });
 
     await audit(user.id, "WITHDRAWAL", "SavingsTransaction", result.txn.id, `Withdrawal ${data.amount}`);
+
+    await createNotification({
+      userId: user.id,
+      type: "WITHDRAWAL",
+      title: "Savings Withdrawal",
+      message: `MK ${data.amount.toLocaleString()} withdrawn from your savings account. New balance: MK ${result.balanceAfter.toLocaleString()}.`,
+      link: "/savings",
+      entityId: result.txn.id,
+    });
 
     return ok({
       transaction: result.txn,

@@ -1,7 +1,8 @@
 import { db } from "@/lib/db";
 import { createSession, audit, hashPassword } from "@/lib/auth";
 import { registerSchema } from "@/lib/validation";
-import { ok, fail, handleApiError, parseBody } from "@/lib/api";
+import { ok, fail, handleApiError, parseBody, generateReference } from "@/lib/api";
+import { MEMBERSHIP_FEE } from "@/lib/constants";
 
 export const runtime = "nodejs";
 
@@ -33,7 +34,21 @@ export async function POST(req: Request) {
       },
     });
 
-    await db.savingsAccount.create({ data: { userId: user.id } });
+    const savings = await db.savingsAccount.create({ data: { userId: user.id, balance: MEMBERSHIP_FEE } });
+    await db.savingsTransaction.create({
+      data: {
+        accountId: savings.id,
+        userId: user.id,
+        type: "DEPOSIT",
+        amount: MEMBERSHIP_FEE,
+        balanceAfter: MEMBERSHIP_FEE,
+        description: "Membership fee contribution (waived, credited as initial savings)",
+        reference: generateReference("FEE"),
+        method: "SYSTEM",
+        status: "COMPLETED",
+        recordedById: user.id,
+      },
+    });
     await db.shareHolding.create({ data: { userId: user.id } });
 
     await createSession(user.id, user.role);

@@ -10,6 +10,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { BrandLogo } from "@/components/unissaco/brand-logo";
 import { StatusBadge } from "@/components/unissaco/shared/status-badge";
+import { NotificationBell } from "@/components/unissaco/shared/notification-bell";
 import { LucideIcon, Menu, LogOut, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 
@@ -184,6 +185,7 @@ export function DashboardLayout({
               </div>
             </div>
             <div className="flex items-center gap-2">
+              <NotificationBell />
               <Avatar className="size-9">
                 <AvatarFallback className="brand-gradient text-white text-xs font-semibold">
                   {initials}

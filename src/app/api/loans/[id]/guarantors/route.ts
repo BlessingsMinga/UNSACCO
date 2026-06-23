@@ -2,13 +2,14 @@ import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
 import { requireAuth, requireAdmin, audit } from "@/lib/auth";
 import { ok, fail, handleApiError, parseBody } from "@/lib/api";
-import { loanGuarantorSchema } from "@/lib/validation";
+import { loanGuarantorSchema, loanGuarantorActionSchema } from "@/lib/validation";
 
-export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     await requireAuth();
+    const { id } = await params;
     const guarantors = await db.loanGuarantor.findMany({
-      where: { loanId: params.id },
+      where: { loanId: id },
       include: { user: { select: { id: true, fullName: true, email: true, phone: true } } },
     });
     return ok(guarantors);
@@ -17,13 +18,14 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
   }
 }
 
-export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const user = await requireAuth();
     const data = await parseBody(req, loanGuarantorSchema);
+    const { id } = await params;
 
     const loan = await db.loanApplication.findUnique({
-      where: { id: params.id },
+      where: { id },
       include: { product: true, guarantors: true },
     });
 
@@ -64,18 +66,15 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 }
 
 // Admin approves/rejects a guarantor
-export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
+export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const admin = await requireAdmin();
-    const body = await req.json();
-    const { guarantorId, action } = body;
-
-    if (!guarantorId || !["approve", "reject"].includes(action)) {
-      return fail("guarantorId and action (approve/reject) are required");
-    }
+    const { id } = await params;
+    const data = await parseBody(req, loanGuarantorActionSchema);
+    const { guarantorId, action } = data;
 
     const guarantor = await db.loanGuarantor.update({
-      where: { id: guarantorId, loanId: params.id },
+      where: { id: guarantorId, loanId: id },
       data: {
         status: action === "approve" ? "APPROVED" : "REJECTED",
         approvedAt: action === "approve" ? new Date() : undefined,

@@ -3,11 +3,12 @@ import { db } from "@/lib/db";
 import { requireAuth } from "@/lib/auth";
 import { ok, fail, handleApiError } from "@/lib/api";
 
-export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const user = await requireAuth();
+    const { id } = await params;
     const loan = await db.loanApplication.findUnique({
-      where: { id: params.id },
+      where: { id },
       include: {
         product: true,
         repayments: { orderBy: { dueDate: "asc" } },

@@ -4,13 +4,14 @@ import { requireAuth, audit } from "@/lib/auth";
 import { ok, fail, handleApiError, parseBody, generateReference } from "@/lib/api";
 import { loanRepaymentSchema } from "@/lib/validation";
 
-export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const user = await requireAuth();
     const data = await parseBody(req, loanRepaymentSchema);
+    const { id } = await params;
 
     const loan = await db.loanApplication.findUnique({
-      where: { id: params.id },
+      where: { id },
       include: { product: true },
     });
 

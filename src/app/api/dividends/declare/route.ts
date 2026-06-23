@@ -3,7 +3,7 @@ import { db } from "@/lib/db";
 import { requireAdmin, audit } from "@/lib/auth";
 import { ok, fail, handleApiError, parseBody } from "@/lib/api";
 import { dividendDeclarationSchema } from "@/lib/validation";
-import { DIVIDEND_MIN_SHARES } from "@/lib/constants";
+import { DIVIDEND_MIN_SHARES, DIVIDEND_TAX_RATE } from "@/lib/constants";
 
 export async function POST(req: NextRequest) {
   try {
@@ -44,14 +44,15 @@ export async function POST(req: NextRequest) {
     // Create payout records for each eligible member
     const payouts = holdings.map((h) => {
       const totalAmount = h.numberOfShares * ratePerShare;
+      const deductedAtSource = DIVIDEND_TAX_RATE > 0 ? totalAmount * (DIVIDEND_TAX_RATE / 100) : 0;
       return {
         declarationId: declaration.id,
         userId: h.userId,
         numberOfShares: h.numberOfShares,
         amountPerShare: ratePerShare,
         totalAmount,
-        deductedAtSource: 0,
-        netAmount: totalAmount,
+        deductedAtSource,
+        netAmount: totalAmount - deductedAtSource,
         status: "PENDING",
       };
     });

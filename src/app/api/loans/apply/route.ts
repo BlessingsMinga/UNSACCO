@@ -4,6 +4,7 @@ import { requireAuth, audit } from "@/lib/auth";
 import { ok, fail, handleApiError, parseBody, generateReference } from "@/lib/api";
 import { loanApplicationSchema } from "@/lib/validation";
 import { LOAN_ELIGIBILITY_MIN_SAVINGS, LOAN_ELIGIBILITY_SAVINGS_RATIO, MIN_SHAREHOLDING_FOR_LOAN } from "@/lib/constants";
+import { createNotification } from "@/lib/notifications/create";
 
 export async function POST(req: NextRequest) {
   try {
@@ -69,6 +70,15 @@ export async function POST(req: NextRequest) {
     });
 
     await audit(user.id, "LOAN_APPLY", "LoanApplication", loan.id, `Applied for ${loan.product.name} loan: MK ${data.amountApplied.toLocaleString()}`);
+
+    await createNotification({
+      userId: user.id,
+      type: "LOAN_APPLIED",
+      title: "Loan Application Submitted",
+      message: `Your ${loan.product.name} loan application for MK ${data.amountApplied.toLocaleString()} has been submitted and is pending review.`,
+      link: "/loans",
+      entityId: loan.id,
+    });
 
     return ok(loan, 201);
   } catch (e) {

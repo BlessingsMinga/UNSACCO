@@ -2,7 +2,8 @@ import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
 import { requireAdmin, audit } from "@/lib/auth";
 import { ok, fail, handleApiError, parseBody, generateReference } from "@/lib/api";
-import { loanApprovalSchema } from "@/lib/validation";
+import { adminLoanActionSchema } from "@/lib/validation";
+import { createNotification } from "@/lib/notifications/create";
 
 export async function GET(req: NextRequest) {
   try {
@@ -44,8 +45,8 @@ export async function GET(req: NextRequest) {
 export async function PATCH(req: NextRequest) {
   try {
     const admin = await requireAdmin();
-    const body = await req.json();
-    const { loanId, action, amountApproved, rejectionReason } = body;
+    const data = await parseBody(req, adminLoanActionSchema);
+    const { loanId, action } = data;
 
     if (!loanId || !["approve", "reject", "disburse"].includes(action)) {
       return fail("loanId and action (approve/reject/disburse) are required");
@@ -53,7 +54,7 @@ export async function PATCH(req: NextRequest) {
 
     const loan = await db.loanApplication.findUnique({
       where: { id: loanId },
-      include: { product: true, guarantors: true },
+      include: { product: true, guarantors: true, user: { select: { id: true, fullName: true, email: true } } },
     });
     if (!loan) return fail("Loan not found", 404);
 
@@ -68,7 +69,7 @@ export async function PATCH(req: NextRequest) {
         }
       }
 
-      const approvedAmt = amountApproved ?? loan.amountApplied;
+      const approvedAmt = (action === "approve" && "amountApproved" in data ? data.amountApproved : undefined) ?? loan.amountApplied;
       const totalInterest = (approvedAmt * loan.interestRate * loan.repaymentPeriod) / (100 * 12);
       const totalRepayable = approvedAmt + totalInterest;
       const monthlyInstallment = totalRepayable / loan.repaymentPeriod;
@@ -87,21 +88,42 @@ export async function PATCH(req: NextRequest) {
       });
 
       await audit(admin.id, "LOAN_APPROVE", "LoanApplication", loanId, `Approved loan: MK ${approvedAmt.toLocaleString()}`);
+
+      await createNotification({
+        userId: loan.userId,
+        type: "LOAN_APPROVED",
+        title: "Loan Approved",
+        message: `Your ${loan.product.name} loan of MK ${approvedAmt.toLocaleString()} has been approved! Installment: MK ${Math.ceil(monthlyInstallment).toLocaleString()}/mo.`,
+        link: "/loans",
+        entityId: loanId,
+      });
+
       return ok({ message: "Loan approved" });
     }
 
     if (action === "reject") {
+      const rejectionReason = (action === "reject" && "rejectionReason" in data ? data.rejectionReason : undefined) || "Declined by administration";
       await db.loanApplication.update({
         where: { id: loanId },
         data: {
           status: "REJECTED",
-          rejectionReason: rejectionReason || "Declined by administration",
+          rejectionReason,
           approvedAt: new Date(),
           approvedById: admin.id,
         },
       });
 
       await audit(admin.id, "LOAN_REJECT", "LoanApplication", loanId, `Rejected loan: ${rejectionReason || "No reason provided"}`);
+
+      await createNotification({
+        userId: loan.userId,
+        type: "LOAN_REJECTED",
+        title: "Loan Rejected",
+        message: `Your ${loan.product.name} loan application has been declined. Reason: ${rejectionReason}`,
+        link: "/loans",
+        entityId: loanId,
+      });
+
       return ok({ message: "Loan rejected" });
     }
 
@@ -145,6 +167,16 @@ export async function PATCH(req: NextRequest) {
       ]);
 
       await audit(admin.id, "LOAN_DISBURSE", "LoanApplication", loanId, `Disbursed loan: MK ${loan.amountApproved.toLocaleString()}`);
+
+      await createNotification({
+        userId: loan.userId,
+        type: "LOAN_DISBURSED",
+        title: "Loan Disbursed",
+        message: `Your ${loan.product.name} loan of MK ${loan.amountApproved.toLocaleString()} has been disbursed to your savings account.`,
+        link: "/loans",
+        entityId: loanId,
+      });
+
       return ok({ message: "Loan disbursed" });
     }
 
