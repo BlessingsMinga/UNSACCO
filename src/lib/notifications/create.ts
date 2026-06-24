@@ -41,7 +41,7 @@ export async function createNotification(options: CreateNotificationOptions): Pr
 
     // If preferences exist, check if this notification type is enabled
     if (prefs) {
-      const typeKey = options.type.toLowerCase() as keyof typeof prefs;
+      const typeKey = options.type.toLowerCase();
       // Map notification type to preference field (camelCase)
       const fieldMap: Record<string, keyof typeof prefs> = {
         deposit: "deposit",
@@ -52,7 +52,7 @@ export async function createNotification(options: CreateNotificationOptions): Pr
         loan_rejected: "loanRejected",
         loan_disbursed: "loanDisbursed",
         loan_repayment: "loanRepayment",
-        loan_due_reminder: "loanRepayment",
+        loan_due_reminder: "loanDueReminder",
         dividend: "dividend",
         member_approved: "memberApproved",
         member_suspended: "memberSuspended",
@@ -62,7 +62,7 @@ export async function createNotification(options: CreateNotificationOptions): Pr
         system: "system",
       };
 
-      const prefField = fieldMap[typeKey];
+      const prefField = fieldMap[typeKey] as keyof typeof prefs | undefined;
       if (prefField && prefs[prefField] === false) {
         return false; // User has disabled this notification type
       }
@@ -80,22 +80,20 @@ export async function createNotification(options: CreateNotificationOptions): Pr
     });
 
     return true;
-  } catch {
+  } catch (e) {
     // Notification failures must never break the main flow
+    console.error("Failed to create notification:", e);
     return false;
   }
 }
 
 /**
  * Creates notifications for multiple users at once.
+ * Uses Promise.allSettled for concurrent execution.
  */
 export async function createBulkNotifications(
   options: CreateNotificationOptions[]
 ): Promise<number> {
-  let created = 0;
-  for (const opt of options) {
-    const result = await createNotification(opt);
-    if (result) created++;
-  }
-  return created;
+  const results = await Promise.allSettled(options.map(opt => createNotification(opt)));
+  return results.filter(r => r.status === "fulfilled" && r.value).length;
 }

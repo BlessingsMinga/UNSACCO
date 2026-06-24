@@ -11,6 +11,9 @@ export async function GET(req: NextRequest) {
     const url = new URL(req.url);
     const status = url.searchParams.get("status");
     const search = url.searchParams.get("search");
+    const page = Math.max(1, Number(url.searchParams.get("page")) || 1);
+    const limit = Math.min(50, Math.max(1, Number(url.searchParams.get("limit")) || 20));
+    const skip = (page - 1) * limit;
 
     const where: Record<string, unknown> = {};
     if (status) where.status = status;
@@ -22,20 +25,25 @@ export async function GET(req: NextRequest) {
       ];
     }
 
-    const loans = await db.loanApplication.findMany({
-      where,
-      include: {
-        user: { select: { id: true, fullName: true, email: true, studentId: true, phone: true } },
-        product: { select: { name: true, interestRate: true, repaymentPeriod: true } },
-        repayments: { orderBy: { dueDate: "asc" } },
-        guarantors: {
-          include: { user: { select: { fullName: true, email: true } } },
+    const [loans, total] = await Promise.all([
+      db.loanApplication.findMany({
+        where,
+        include: {
+          user: { select: { id: true, fullName: true, email: true, studentId: true, phone: true } },
+          product: { select: { name: true, interestRate: true, repaymentPeriod: true } },
+          repayments: { orderBy: { dueDate: "asc" } },
+          guarantors: {
+            include: { user: { select: { fullName: true, email: true } } },
+          },
         },
-      },
-      orderBy: { applicationDate: "desc" },
-    });
+        orderBy: { applicationDate: "desc" },
+        skip,
+        take: limit,
+      }),
+      db.loanApplication.count({ where }),
+    ]);
 
-    return ok(loans);
+    return ok({ loans, total, page, limit, totalPages: Math.ceil(total / limit) });
   } catch (e) {
     return handleApiError(e);
   }
@@ -69,7 +77,7 @@ export async function PATCH(req: NextRequest) {
         }
       }
 
-      const approvedAmt = (action === "approve" && "amountApproved" in data ? data.amountApproved : undefined) ?? loan.amountApplied;
+      const approvedAmt = data.amountApproved ?? loan.amountApplied;
       const totalInterest = (approvedAmt * loan.interestRate * loan.repaymentPeriod) / (100 * 12);
       const totalRepayable = approvedAmt + totalInterest;
       const monthlyInstallment = totalRepayable / loan.repaymentPeriod;
@@ -102,14 +110,14 @@ export async function PATCH(req: NextRequest) {
     }
 
     if (action === "reject") {
-      const rejectionReason = (action === "reject" && "rejectionReason" in data ? data.rejectionReason : undefined) || "Declined by administration";
+      const rejectionReason = data.rejectionReason || "Declined by administration";
       await db.loanApplication.update({
         where: { id: loanId },
         data: {
           status: "REJECTED",
           rejectionReason,
-          approvedAt: new Date(),
-          approvedById: admin.id,
+          rejectedAt: new Date(),
+          rejectedById: admin.id,
         },
       });
 
@@ -136,35 +144,38 @@ export async function PATCH(req: NextRequest) {
       if (!savings) return fail("Member has no savings account");
 
       const ref = generateReference("LND");
+      const disbursedAmount = loan.amountApproved!;
 
-      await db.$transaction([
-        db.loanApplication.update({
+      await db.$transaction(async (tx) => {
+        await tx.loanApplication.update({
           where: { id: loanId },
           data: {
             status: "DISBURSED",
             disbursedAt: new Date(),
             disbursedById: admin.id,
           },
-        }),
-        db.savingsAccount.update({
+        });
+
+        const updatedAccount = await tx.savingsAccount.update({
           where: { userId: loan.userId },
-          data: { balance: { increment: loan.amountApproved } },
-        }),
-        db.savingsTransaction.create({
+          data: { balance: { increment: disbursedAmount } },
+        });
+
+        await tx.savingsTransaction.create({
           data: {
             accountId: savings.id,
             userId: loan.userId,
             type: "LOAN_DISBURSEMENT",
-            amount: loan.amountApproved,
-            balanceAfter: savings.balance + loan.amountApproved,
+            amount: disbursedAmount,
+            balanceAfter: updatedAccount.balance,
             description: `Loan disbursement - ${loan.product.name}`,
             reference: ref,
             method: "SYSTEM",
             status: "COMPLETED",
             recordedById: admin.id,
           },
-        }),
-      ]);
+        });
+      });
 
       await audit(admin.id, "LOAN_DISBURSE", "LoanApplication", loanId, `Disbursed loan: MK ${loan.amountApproved.toLocaleString()}`);
 
@@ -198,7 +209,8 @@ export async function HEAD() {
     ]);
 
     return ok({ pending, active, total, totalRepaid: repaid._sum.amount ?? 0 });
-  } catch {
-    return ok({ pending: 0, active: 0, total: 0, totalRepaid: 0 });
+  } catch (e) {
+    console.error("Failed to fetch loan stats:", e);
+    return handleApiError(e);
   }
 }

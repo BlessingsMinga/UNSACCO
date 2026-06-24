@@ -40,8 +40,9 @@ export async function POST(req: NextRequest) {
     if (shareCount < MIN_SHAREHOLDING_FOR_LOAN) {
       return fail(`Minimum ${MIN_SHAREHOLDING_FOR_LOAN} shares required to apply for a loan`);
     }
-    if (activeLoans.length > 0) {
-      return fail("You already have an active loan. Please clear it before applying for a new one.");
+    const existingProductLoan = activeLoans.find(l => l.productId === data.productId);
+    if (existingProductLoan) {
+      return fail("You already have an active loan for this product. Please clear your existing loan before applying for a new one.");
     }
 
     // Calculate monthly installment (simple interest, equal principal)

@@ -85,6 +85,7 @@ const PREF_LABELS: Record<string, string> = {
   loanRejected: "Loan Rejections",
   loanDisbursed: "Loan Disbursements",
   loanRepayment: "Loan Repayments",
+  loanDueReminder: "Loan Due Reminders",
   dividend: "Dividends",
   memberApproved: "Member Approvals",
   memberSuspended: "Member Suspensions",
@@ -177,7 +178,7 @@ export function NotificationBell() {
       );
       setUnreadCount((prev) => Math.max(0, prev - 1));
     } catch {
-      // silent
+      // Mark-as-read failures are non-critical — don't disrupt the user
     }
   };
 
@@ -186,7 +187,7 @@ export function NotificationBell() {
       const data = await api.get<NotificationPrefs>("/api/notifications/preferences");
       setPreferences(data);
     } catch {
-      // silent
+      // Preference fetch failures are non-critical — user can retry by opening dialog again
     }
   };
 

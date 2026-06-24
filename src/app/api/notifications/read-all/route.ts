@@ -1,7 +1,12 @@
 import { NextRequest } from "next/server";
+import { z } from "zod";
 import { db } from "@/lib/db";
 import { requireAuth } from "@/lib/auth";
-import { ok, handleApiError } from "@/lib/api";
+import { ok, handleApiError, parseBody } from "@/lib/api";
+
+const markReadSchema = z.object({
+  id: z.string().min(1).optional(),
+});
 
 export async function POST(_req: NextRequest) {
   try {
@@ -19,8 +24,8 @@ export async function POST(_req: NextRequest) {
 export async function PATCH(req: NextRequest) {
   try {
     const user = await requireAuth();
-    const body = await req.json();
-    const { id } = body;
+    const data = await parseBody(req, markReadSchema);
+    const { id } = data;
     if (!id) {
       // Mark all as read
       const result = await db.notification.updateMany({

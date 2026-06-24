@@ -56,7 +56,7 @@ function SidebarContent({ user, navItems, activeKey, onNavigate, badgeLabel, onI
     try {
       await api.post("/api/auth/logout");
     } catch {
-      // ignore
+      // Logout API failure is non-blocking — proceed with client-side logout
     }
     logout();
     setUser(null);

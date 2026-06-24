@@ -31,51 +31,53 @@ export async function POST(req: NextRequest) {
     let processedCount = 0;
     let totalPaid = 0;
 
-    // Process each payout
-    for (const payout of declaration.payouts) {
-      const savings = payout.user.savingsAccount;
-      if (!savings) continue;
+    // Process all payouts in a single transaction for atomicity and performance
+    await db.$transaction(async (tx) => {
+      for (const payout of declaration.payouts) {
+        const savings = payout.user.savingsAccount;
+        if (!savings) continue;
 
-      await db.$transaction([
         // Update payout status
-        db.dividendPayout.update({
+        await tx.dividendPayout.update({
           where: { id: payout.id },
           data: {
             status: "PAID",
             paidAt: new Date(),
             reference: `${ref}-${payout.id.slice(0, 6)}`,
           },
-        }),
-        // Credit savings account
-        db.savingsAccount.update({
+        });
+
+        // Credit savings account and get updated balance
+        const updatedAccount = await tx.savingsAccount.update({
           where: { id: savings.id },
           data: { balance: { increment: payout.netAmount } },
-        }),
-        // Record savings transaction
-        db.savingsTransaction.create({
+        });
+
+        // Record savings transaction with correct balanceAfter
+        await tx.savingsTransaction.create({
           data: {
             accountId: savings.id,
             userId: payout.userId,
             type: "DIVIDEND",
             amount: payout.netAmount,
-            balanceAfter: savings.balance + payout.netAmount,
+            balanceAfter: updatedAccount.balance,
             description: `Dividend payout - ${declaration.label} (${payout.numberOfShares} shares @ MK ${payout.amountPerShare.toFixed(2)})`,
             reference: `${ref}-${payout.id.slice(0, 6)}`,
             method: "SYSTEM",
             status: "COMPLETED",
             recordedById: admin.id,
           },
-        }),
-      ]);
+        });
 
-      processedCount++;
-      totalPaid += payout.netAmount;
-    }
+        processedCount++;
+        totalPaid += payout.netAmount;
+      }
 
-    // Update declaration status
-    await db.dividendDeclaration.update({
-      where: { id: declarationId },
-      data: { status: "PAID_OUT", paidOutAt: new Date() },
+      // Update declaration status
+      await tx.dividendDeclaration.update({
+        where: { id: declarationId },
+        data: { status: "PAID_OUT", paidOutAt: new Date() },
+      });
     });
 
     await audit(admin.id, "DIVIDEND_PAYOUT", "DividendDeclaration", declarationId,

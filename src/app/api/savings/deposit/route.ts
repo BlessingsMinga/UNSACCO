@@ -1,7 +1,7 @@
 import { db } from "@/lib/db";
 import { requireAuth, audit } from "@/lib/auth";
 import { depositSchema } from "@/lib/validation";
-import { ok, fail, handleApiError, parseBody, generateReference } from "@/lib/api";
+import { ok, handleApiError, parseBody, generateReference } from "@/lib/api";
 import { createNotification } from "@/lib/notifications/create";
 
 export const runtime = "nodejs";

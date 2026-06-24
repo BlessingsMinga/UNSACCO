@@ -54,6 +54,7 @@ model User {
     auditLogs               AuditLog[]
     loanApplications        LoanApplication[] // loans this user applied for
     loanApprovals           LoanApplication[]       @relation("LoanApprover") // loans this user approved
+    loanRejections          LoanApplication[]       @relation("LoanRejecter") // loans this user rejected
     loanGuarantees          LoanGuarantor[]
     dividends               DividendPayout[]
     notifications           Notification[]
@@ -232,6 +233,9 @@ model LoanApplication {
     approvedById       String?
     approvedBy         User?       @relation("LoanApprover", fields: [approvedById], references: [id])
     rejectionReason    String?
+    rejectedAt         DateTime?
+    rejectedById       String?
+    rejectedBy         User?       @relation("LoanRejecter", fields: [rejectedById], references: [id])
     disbursedAt        DateTime?
     disbursedById      String?
     closedAt           DateTime?
@@ -370,6 +374,7 @@ model NotificationPreference {
     loanRejected       Boolean  @default(true)
     loanDisbursed      Boolean  @default(true)
     loanRepayment      Boolean  @default(true)
+    loanDueReminder    Boolean  @default(true)
     dividend           Boolean  @default(true)
     memberApproved     Boolean  @default(true)
     memberSuspended    Boolean  @default(true)

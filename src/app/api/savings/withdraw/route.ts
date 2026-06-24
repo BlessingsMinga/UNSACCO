@@ -1,8 +1,9 @@
 import { db } from "@/lib/db";
 import { requireAuth, audit } from "@/lib/auth";
 import { withdrawalSchema } from "@/lib/validation";
-import { ok, fail, handleApiError, parseBody, generateReference } from "@/lib/api";
+import { ok, handleApiError, parseBody, generateReference } from "@/lib/api";
 import { createNotification } from "@/lib/notifications/create";
+import { MIN_SAVINGS_DEPOSIT } from "@/lib/constants";
 
 export const runtime = "nodejs";
 
@@ -18,6 +19,9 @@ export async function POST(req: Request) {
         throw new Error("Insufficient savings balance for this withdrawal.");
       }
       const balanceAfter = account.balance - data.amount;
+      if (balanceAfter < MIN_SAVINGS_DEPOSIT) {
+        throw new Error(`Minimum savings balance of MK ${MIN_SAVINGS_DEPOSIT.toLocaleString()} must be maintained after withdrawal.`);
+      }
       const txn = await tx.savingsTransaction.create({
         data: {
           accountId: account.id,

@@ -1,7 +1,19 @@
 import { NextRequest } from "next/server";
+import { z } from "zod";
 import { db } from "@/lib/db";
 import { requireAuth } from "@/lib/auth";
-import { ok, fail, handleApiError } from "@/lib/api";
+import { ok, fail, handleApiError, parseBody } from "@/lib/api";
+
+const allowedFields = [
+  "deposit", "withdrawal", "sharePurchase", "loanApplied", "loanApproved",
+  "loanRejected", "loanDisbursed", "loanRepayment", "loanDueReminder", "dividend",
+  "memberApproved", "memberSuspended", "memberClosed",
+  "guarantorRequest", "guarantorConfirmed", "system",
+] as const;
+
+const notificationPrefsSchema = z.object(
+  Object.fromEntries(allowedFields.map(f => [f, z.boolean().optional()])) as Record<string, z.ZodOptional<z.ZodBoolean>>
+);
 
 export async function GET(_req: NextRequest) {
   try {
@@ -24,27 +36,20 @@ export async function GET(_req: NextRequest) {
 export async function PATCH(req: NextRequest) {
   try {
     const user = await requireAuth();
-    const body = await req.json();
-    const allowedFields = [
-      "deposit", "withdrawal", "sharePurchase", "loanApplied", "loanApproved",
-      "loanRejected", "loanDisbursed", "loanRepayment", "dividend",
-      "memberApproved", "memberSuspended", "memberClosed",
-      "guarantorRequest", "guarantorConfirmed", "system",
-    ];
-
-    const data: Record<string, boolean> = {};
+    const data = await parseBody(req, notificationPrefsSchema);
+    const filteredData: Record<string, boolean> = {};
     for (const field of allowedFields) {
-      if (typeof body[field] === "boolean") {
-        data[field] = body[field];
+      if (typeof data[field] === "boolean") {
+        filteredData[field] = data[field];
       }
     }
 
-    if (Object.keys(data).length === 0) return fail("No valid preferences provided");
+    if (Object.keys(filteredData).length === 0) return fail("No valid preferences provided");
 
     const prefs = await db.notificationPreference.upsert({
       where: { userId: user.id },
-      create: { userId: user.id, ...data },
-      update: data,
+      create: { userId: user.id, ...filteredData },
+      update: filteredData,
     });
 
     return ok(prefs);

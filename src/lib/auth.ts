@@ -6,9 +6,10 @@ import crypto from "crypto";
 import { cookies } from "next/headers";
 import { db } from "@/lib/db";
 
-const SESSION_SECRET =
-  process.env.SESSION_SECRET ||
-  "unissacco-dev-secret-change-in-production-32bytes-min!!";
+if (!process.env.SESSION_SECRET) {
+  throw new Error("SESSION_SECRET environment variable is required in production");
+}
+const SESSION_SECRET = process.env.SESSION_SECRET;
 const COOKIE_NAME = "unissacco_session";
 const TOKEN_TTL_SECONDS = 60 * 60 * 24 * 7; // 7 days
 
@@ -130,8 +131,8 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
     },
   });
   if (!user) return null;
-  // Suspended / closed accounts cannot use the platform (admins can still manage)
-  if (user.role === "MEMBER" && (user.status === "SUSPENDED" || user.status === "CLOSED")) {
+  // Suspended / closed accounts cannot use the platform
+  if (user.status === "SUSPENDED" || user.status === "CLOSED") {
     return null;
   }
   return user;
@@ -161,7 +162,8 @@ export async function audit(
     await db.auditLog.create({
       data: { userId, action, entity, entityId, details, ipAddress },
     });
-  } catch {
+  } catch (e) {
     // audit failures must never break the main flow
+    console.error("Audit log failed:", e);
   }
 }
