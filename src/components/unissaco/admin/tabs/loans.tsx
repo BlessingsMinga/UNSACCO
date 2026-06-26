@@ -133,10 +133,10 @@ export function AdminLoansTab() {
       const query = params.toString() ? `?${params.toString()}` : "";
 
       const [loansRes, statsRes] = await Promise.all([
-        api.get<Loan[]>(`/api/admin/loans${query}`),
+        api.get<{ loans: Loan[] }>(`/api/admin/loans${query}`),
         api.get<LoanStats>("/api/admin/loans?summary=true").catch(() => null),
       ]);
-      setLoans(loansRes);
+      setLoans(loansRes.loans);
       if (statsRes) setStats(statsRes);
     } catch (e) {
       if (!(e instanceof ApiError && e.status === 401)) {
