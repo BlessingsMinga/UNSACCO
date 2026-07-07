@@ -45,9 +45,12 @@ async function request<T>(
   const text = await res.text();
   const data = text ? JSON.parse(text) : null;
   if (!res.ok) {
+    const raw = data && typeof data === "object" && "error" in data ? (data as { error: unknown }).error : undefined;
     const message =
-      (data && typeof data === "object" && "error" in data && String((data as { error: unknown }).error)) ||
-      `Request failed (${res.status})`;
+      typeof raw === "string" ? raw :
+        typeof raw === "object" && raw !== null ? JSON.stringify(raw) :
+          raw !== undefined ? String(raw) :
+            `Request failed (${res.status})`;
     throw new ApiError(message, res.status, (data as { details?: unknown })?.details);
   }
   return data as T;

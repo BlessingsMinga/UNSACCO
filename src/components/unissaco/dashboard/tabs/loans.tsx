@@ -122,6 +122,7 @@ export function LoansTab() {
 
   // Repay form
   const [repayAmount, setRepayAmount] = useState("");
+  const [repayMethod, setRepayMethod] = useState("PAYCHANGU");
 
   const fetchData = useCallback(async () => {
     try {
@@ -172,11 +173,24 @@ export function LoansTab() {
     }
     setSubmitting(true);
     try {
-      await api.post(`/api/loans/${loanId}/repay`, { amount: Number(repayAmount), method: "MOBILE_MONEY" });
-      toast.success("Repayment successful!");
-      setRepayOpen(null);
-      setRepayAmount("");
-      fetchData();
+      if (repayMethod === "PAYCHANGU") {
+        // Use PayChangu Standard Checkout - redirect to hosted payment page
+        const res = await api.post<{ checkout_url: string; tx_ref: string }>("/api/payments/initiate", {
+          loanId,
+          amount: Number(repayAmount),
+        });
+        setRepayOpen(null);
+        setRepayAmount("");
+        // Redirect user to PayChangu's hosted checkout page
+        window.location.href = res.checkout_url;
+      } else {
+        // Deduct directly from savings
+        await api.post(`/api/loans/${loanId}/repay`, { amount: Number(repayAmount), method: repayMethod });
+        toast.success("Repayment successful! Amount deducted from your savings.");
+        setRepayOpen(null);
+        setRepayAmount("");
+        fetchData();
+      }
     } catch (e) {
       toast.error(e instanceof ApiError ? e.message : "Repayment failed");
     } finally {
@@ -368,15 +382,42 @@ export function LoansTab() {
                             Outstanding: {formatCurrency(loan.balance)} | Monthly installment: {loan.monthlyInstallment ? formatCurrency(loan.monthlyInstallment) : "—"}
                           </DialogDescription>
                         </DialogHeader>
-                        <div className="space-y-2">
-                          <Label>Amount (MWK)</Label>
-                          <Input
-                            type="number"
-                            placeholder="Enter amount"
-                            value={repayAmount}
-                            onChange={(e) => setRepayAmount(e.target.value)}
-                            max={loan.balance}
-                          />
+                        <div className="space-y-3">
+                          <div className="space-y-2">
+                            <Label>Amount (MWK)</Label>
+                            <Input
+                              type="number"
+                              placeholder="Enter amount"
+                              value={repayAmount}
+                              onChange={(e) => setRepayAmount(e.target.value)}
+                              max={loan.balance}
+                            />
+                          </div>
+                          <div className="space-y-1.5">
+                            <Label>Payment method</Label>
+                            <Select value={repayMethod} onValueChange={setRepayMethod}>
+                              <SelectTrigger><SelectValue /></SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="PAYCHANGU">PayChangu (Mobile Money / Card / Bank)</SelectItem>
+                                <SelectItem value="MOBILE_MONEY">Mobile Money (Savings)</SelectItem>
+                                <SelectItem value="BANK">Bank Transfer (Savings)</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            {repayMethod === "PAYCHANGU" && (
+                              <div className="rounded-lg bg-emerald-500/10 border border-emerald-200 p-3 text-xs space-y-1">
+                                <p className="font-medium text-emerald-700">How it works:</p>
+                                <ol className="list-decimal list-inside text-emerald-600 space-y-0.5">
+                                  <li>Enter the amount and click Pay Now</li>
+                                  <li>You'll be redirected to PayChangu's secure checkout page</li>
+                                  <li>Pay using Mobile Money, Card, or Bank Transfer</li>
+                                  <li>You'll be redirected back once payment is complete</li>
+                                </ol>
+                              </div>
+                            )}
+                            {repayMethod !== "PAYCHANGU" && (
+                              <p className="text-xs text-muted-foreground">Payment will be deducted from your savings balance.</p>
+                            )}
+                          </div>
                         </div>
                         <DialogFooter>
                           <Button variant="outline" onClick={() => setRepayOpen(null)}>Cancel</Button>

@@ -17,6 +17,13 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { StatCard } from "@/components/unissaco/shared/stat-card";
 import { EmptyState } from "@/components/unissaco/shared/empty-state";
 import { toast } from "sonner";
@@ -189,6 +196,7 @@ export function SharesTab() {
 
 function BuySharesDialog({ open, onOpenChange, onDone, savingsBalance, currentShares }: { open: boolean; onOpenChange: (v: boolean) => void; onDone: () => void; savingsBalance: number; currentShares: number }) {
   const [qty, setQty] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState("SAVINGS");
   const [loading, setLoading] = useState(false);
   const maxAffordable = Math.floor(savingsBalance / SHARE_PRICE);
   const cost = (Number(qty) || 0) * SHARE_PRICE;
@@ -196,14 +204,28 @@ function BuySharesDialog({ open, onOpenChange, onDone, savingsBalance, currentSh
   async function submit() {
     const n = Number(qty);
     if (!n || n < 1) return toast.error("Enter at least 1 share.");
-    if (cost > savingsBalance) return toast.error(`Insufficient savings. You need ${formatCurrency(cost)} but have ${formatCurrency(savingsBalance)}.`);
+    if (paymentMethod === "SAVINGS" && cost > savingsBalance) {
+      return toast.error(`Insufficient savings. You need ${formatCurrency(cost)} but have ${formatCurrency(savingsBalance)}.`);
+    }
     setLoading(true);
     try {
-      const res = await api.post<{ numberOfShares: number; savingsBalance: number }>("/api/shares/buy", { numberOfShares: n });
-      toast.success(`Bought ${n} share(s) for ${formatCurrency(cost)}. You now hold ${res.numberOfShares} shares.`);
+      const res = await api.post<{ checkout_url?: string; numberOfShares: number; savingsBalance: number; message?: string; status?: string }>("/api/shares/buy", {
+        numberOfShares: n,
+        payment_method: paymentMethod,
+      });
+
+      if (res.checkout_url) {
+        // PayChangu Standard Checkout - redirect to hosted payment page
+        window.location.href = res.checkout_url;
+      } else if (res.message && res.status === "PENDING") {
+        // PayChangu flow
+        toast.success(`Payment prompt sent to your phone. Check your mobile money app and enter your PIN to complete the purchase.`, { duration: 8000 });
+      } else {
+        toast.success(`Bought ${n} share(s) for ${formatCurrency(cost)}. You now hold ${res.numberOfShares} shares.`);
+      }
       setQty("");
       onOpenChange(false);
-      onDone();
+      setTimeout(onDone, 3000);
     } catch (e) {
       toast.error(e instanceof ApiError ? e.message : "Purchase failed.");
     } finally {
@@ -219,7 +241,7 @@ function BuySharesDialog({ open, onOpenChange, onDone, savingsBalance, currentSh
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Buy shares</DialogTitle>
-          <DialogDescription>Shares are purchased using your savings balance at {formatCurrency(SHARE_PRICE)} each.</DialogDescription>
+          <DialogDescription>Shares are {formatCurrency(SHARE_PRICE)} each. Choose a payment method below.</DialogDescription>
         </DialogHeader>
         <div className="space-y-4 py-2">
           <div className="grid grid-cols-2 gap-3 text-sm">
@@ -233,9 +255,24 @@ function BuySharesDialog({ open, onOpenChange, onDone, savingsBalance, currentSh
             </div>
           </div>
           <div className="space-y-1.5">
+            <Label>Payment method</Label>
+            <Select value={paymentMethod} onValueChange={setPaymentMethod}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="PAYCHANGU">PayChangu Mobile Money (Mpamba/Airtel)</SelectItem>
+                <SelectItem value="SAVINGS">Savings Account</SelectItem>
+              </SelectContent>
+            </Select>
+            {paymentMethod === "PAYCHANGU" && (
+              <p className="text-xs text-emerald-600">You will be redirected to PayChangu's secure checkout page to pay.</p>
+            )}
+            {paymentMethod === "SAVINGS" && (
+              <p className="text-xs text-muted-foreground">Max affordable from savings: {maxAffordable} shares ({formatCurrency(maxAffordable * SHARE_PRICE)})</p>
+            )}
+          </div>
+          <div className="space-y-1.5">
             <Label htmlFor="qty">Number of shares</Label>
             <Input id="qty" type="number" min={1} value={qty} onChange={(e) => setQty(e.target.value)} placeholder="e.g. 5" />
-            <p className="text-xs text-muted-foreground">Max affordable: {maxAffordable} shares ({formatCurrency(maxAffordable * SHARE_PRICE)})</p>
             {Number(qty) > 0 && (
               <div className="flex items-center justify-between rounded-lg bg-primary/5 border border-primary/20 px-3 py-2 text-sm">
                 <span className="text-muted-foreground">Total cost</span>
@@ -246,7 +283,7 @@ function BuySharesDialog({ open, onOpenChange, onDone, savingsBalance, currentSh
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button onClick={submit} disabled={loading || cost > savingsBalance || !qty}>
+          <Button onClick={submit} disabled={loading || !qty || (paymentMethod === "SAVINGS" && cost > savingsBalance)}>
             {loading && <Loader2 className="size-4 animate-spin mr-2" />} Buy {qty || ""} share{Number(qty) === 1 ? "" : "s"}
           </Button>
         </DialogFooter>

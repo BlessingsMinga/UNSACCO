@@ -176,9 +176,8 @@ export function SavingsTab() {
                     <tr key={t.id} className="border-b border-border/50 last:border-0 hover:bg-muted/40 transition-colors">
                       <td className="px-5 py-3 whitespace-nowrap text-muted-foreground">{formatDateTime(t.createdAt)}</td>
                       <td className="px-3 py-3">
-                        <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold ${
-                          positive ? "bg-emerald-500/10 text-emerald-600" : "bg-rose-500/10 text-rose-600"
-                        }`}>
+                        <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold ${positive ? "bg-emerald-500/10 text-emerald-600" : "bg-rose-500/10 text-rose-600"
+                          }`}>
                           {positive ? <ArrowDownLeft className="size-3" /> : <ArrowUpRight className="size-3" />}
                           {t.type}
                         </span>
@@ -223,17 +222,33 @@ function DepositDialog({ open, onOpenChange, onDone, balance }: { open: boolean;
     if (amt < MIN_SAVINGS_DEPOSIT) return toast.error(`Minimum deposit is ${formatCurrency(MIN_SAVINGS_DEPOSIT)}.`);
     setLoading(true);
     try {
-      const res = await api.post<{ newBalance: number }>("/api/savings/deposit", {
+      const res = await api.post<{ checkout_url?: string; newBalance?: number; message?: string; reference?: string; status?: string }>("/api/savings/deposit", {
         amount: amt,
         method,
         description: description || undefined,
       });
-      toast.success(`Deposited ${formatCurrency(amt)}. New balance: ${formatCurrency(res.newBalance)}.`);
-      setAmount(""); setDescription("");
-      onOpenChange(false);
-      onDone();
+      if (res.checkout_url) {
+        // PayChangu Standard Checkout - redirect to hosted payment page
+        setAmount(""); setDescription("");
+        onOpenChange(false);
+        window.location.href = res.checkout_url;
+      } else if (res.message && res.status === "PENDING") {
+        // PayChangu flow - user needs to authorize on phone
+        toast.success(`Payment prompt sent to your phone. Check your mobile money app and enter your PIN to complete the deposit.`, { duration: 8000 });
+        setAmount(""); setDescription("");
+        onOpenChange(false);
+        // Don't reload yet - webhook will update balance
+        setTimeout(onDone, 5000);
+      } else {
+        toast.success(`Deposited ${formatCurrency(amt)}. New balance: ${formatCurrency(res.newBalance!)}.`);
+        setAmount(""); setDescription("");
+        onOpenChange(false);
+        onDone();
+      }
     } catch (e) {
-      toast.error(e instanceof ApiError ? e.message : "Deposit failed.");
+      const errMsg = e instanceof ApiError ? e.message : "Deposit failed.";
+      toast.error(errMsg);
+      console.error("Deposit error:", errMsg, e);
     } finally {
       setLoading(false);
     }
@@ -263,11 +278,15 @@ function DepositDialog({ open, onOpenChange, onDone, balance }: { open: boolean;
             <Select value={method} onValueChange={setMethod}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="MOBILE_MONEY">Mobile Money (Mpamba/Airtel Money)</SelectItem>
+                <SelectItem value="PAYCHANGU">PayChangu (Mobile Money / Card / Bank)</SelectItem>
+                <SelectItem value="MOBILE_MONEY">Mobile Money (Other)</SelectItem>
                 <SelectItem value="BANK">Bank Transfer</SelectItem>
                 <SelectItem value="CASH">Cash</SelectItem>
               </SelectContent>
             </Select>
+            {method === "PAYCHANGU" && (
+              <p className="text-xs text-emerald-600">You will be redirected to PayChangu's secure checkout page to complete payment.</p>
+            )}
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="dep-desc">Description (optional)</Label>
@@ -337,11 +356,22 @@ function WithdrawDialog({ open, onOpenChange, onDone, balance }: { open: boolean
             <Select value={method} onValueChange={setMethod}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
+                <SelectItem value="PAYCHANGU">PayChangu (Receive via Mobile Money)</SelectItem>
                 <SelectItem value="MOBILE_MONEY">Mobile Money</SelectItem>
                 <SelectItem value="BANK">Bank Transfer</SelectItem>
                 <SelectItem value="CASH">Cash</SelectItem>
               </SelectContent>
             </Select>
+            {method === "PAYCHANGU" && (
+              <div className="rounded-lg bg-emerald-500/10 border border-emerald-200 p-3 text-xs space-y-1">
+                <p className="font-medium text-emerald-700">How it works:</p>
+                <ol className="list-decimal list-inside text-emerald-600 space-y-0.5">
+                  <li>Enter the amount and confirm</li>
+                  <li>Funds are sent directly to your mobile money wallet</li>
+                  <li>Money arrives instantly — no bank delays</li>
+                </ol>
+              </div>
+            )}
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="wd-desc">Reason (optional)</Label>

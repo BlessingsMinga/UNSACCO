@@ -39,18 +39,19 @@ export const loginSchema = z.object({
 
 export const depositSchema = z.object({
   amount: z.number().positive("Amount must be greater than zero"),
-  method: z.enum(["MOBILE_MONEY", "BANK", "CASH"]).default("MOBILE_MONEY"),
+  method: z.enum(["MOBILE_MONEY", "BANK", "CASH", "PAYCHANGU"]).default("MOBILE_MONEY"),
   description: z.string().max(160).optional(),
 });
 
 export const withdrawalSchema = z.object({
   amount: z.number().positive("Amount must be greater than zero"),
-  method: z.enum(["MOBILE_MONEY", "BANK", "CASH"]).default("MOBILE_MONEY"),
+  method: z.enum(["MOBILE_MONEY", "BANK", "CASH", "PAYCHANGU"]).default("MOBILE_MONEY"),
   description: z.string().max(160).optional(),
 });
 
 export const buySharesSchema = z.object({
   numberOfShares: z.number().int().positive("Number of shares must be at least 1"),
+  paymentMethod: z.enum(["SAVINGS", "PAYCHANGU"]).default("SAVINGS"),
 });
 
 export const investmentSchema = z.object({
@@ -116,7 +117,7 @@ export const adminLoanActionSchema = z.discriminatedUnion("action", [
 
 export const loanRepaymentSchema = z.object({
   amount: z.number().positive("Repayment amount must be greater than zero"),
-  method: z.enum(["MOBILE_MONEY", "BANK", "CASH", "SYSTEM"]).default("MOBILE_MONEY"),
+  method: z.enum(["MOBILE_MONEY", "BANK", "CASH", "SYSTEM", "PAYCHANGU"]).default("MOBILE_MONEY"),
 });
 
 export const loanGuarantorSchema = z.object({

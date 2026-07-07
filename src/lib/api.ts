@@ -11,8 +11,9 @@ export function ok<T>(data: T, status = 200) {
   return NextResponse.json(data, { status });
 }
 
-export function fail(message: string, status = 400, extra?: Record<string, unknown>) {
-  return NextResponse.json<ApiError>({ error: message, ...extra }, { status });
+export function fail(message: unknown, status = 400, extra?: Record<string, unknown>) {
+  const errorMessage = typeof message === "string" ? message : JSON.stringify(message);
+  return NextResponse.json<ApiError>({ error: errorMessage, ...extra }, { status });
 }
 
 export function unauthorized() {
