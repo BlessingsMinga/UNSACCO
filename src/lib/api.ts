@@ -33,6 +33,11 @@ export function handleApiError(error: unknown) {
     if (error.message === "UNAUTHORIZED") return unauthorized();
     if (error.message === "FORBIDDEN") return forbidden();
     if (error.message === "NOT_FOUND") return notFound();
+    // Rate limit error (429)
+    const status = (error as { status?: number }).status;
+    if (status === 429) {
+      return fail(error.message || "Too many requests. Please slow down.", 429);
+    }
     // Zod error detection - handle both Zod v3/v4 error shapes
     const zodErr = (error as { errors?: unknown; issues?: unknown }).errors ?? (error as { issues?: unknown }).issues;
     if (zodErr && Array.isArray(zodErr)) {

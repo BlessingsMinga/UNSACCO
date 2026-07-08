@@ -4,11 +4,13 @@ import { depositSchema } from "@/lib/validation";
 import { ok, fail, handleApiError, parseBody, generateReference } from "@/lib/api";
 import { createNotification } from "@/lib/notifications/create";
 import { initiateStandardCheckout } from "@/lib/paychangu";
+import { rateLimitOrThrow } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 
 export async function POST(req: Request) {
   try {
+    rateLimitOrThrow(req, "PAYMENT");
     const user = await requireAuth();
     const data = await parseBody(req, depositSchema);
 

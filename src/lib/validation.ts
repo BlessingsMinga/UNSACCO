@@ -1,5 +1,19 @@
 // Zod validation schemas shared by API routes & UI forms.
 import { z } from "zod";
+import {
+  SAVINGS_TXN_TYPES,
+  SHARE_TXN_TYPES,
+  INVESTMENT_CATEGORIES,
+  INVESTMENT_STATUSES,
+  LOAN_STATUSES,
+  LOAN_PRODUCT_STATUSES,
+  LOAN_REPAYMENT_STATUSES,
+  LOAN_GUARANTOR_STATUSES,
+  DIVIDEND_DECLARATION_STATUSES,
+  DIVIDEND_PAYOUT_STATUSES,
+  MEMBER_STATUSES,
+  USER_ROLES,
+} from "@/lib/constants";
 
 export const emailSchema = z.string().email("Enter a valid email address").toLowerCase().trim();
 
@@ -56,7 +70,7 @@ export const buySharesSchema = z.object({
 
 export const investmentSchema = z.object({
   name: z.string().min(3, "Investment name is required").max(120),
-  category: z.enum(["AGRICULTURE", "STUDENT_VENTURE", "FIXED_INCOME", "REAL_ESTATE", "OTHER"]),
+  category: z.enum(INVESTMENT_CATEGORIES),
   description: z.string().max(800).optional().default(""),
   amountInvested: z.number().positive("Amount must be greater than zero"),
   expectedROI: z.number().min(0).max(200).default(0),

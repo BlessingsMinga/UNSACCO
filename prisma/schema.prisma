@@ -5,6 +5,11 @@ generator client {
     provider = "prisma-client-js"
 }
 
+// ── Database ─────────────────────────────────────────────────────────────────
+// Uses PostgreSQL in production (default). For local development:
+//   1. Copy schema to schema.prisma.dev, change provider to "sqlite"
+//   2. Run: prisma generate --schema=prisma/schema.prisma.dev
+//   3. OR set DATABASE_URL to your local PostgreSQL instance.
 datasource db {
     provider = "postgresql"
     url      = env("DATABASE_URL")
@@ -23,6 +28,8 @@ model User {
     // Member status: PENDING | ACTIVE | SUSPENDED | CLOSED
     status        String  @default("PENDING")
     emailVerified Boolean @default(false)
+    // Token version: incremented on password change to invalidate all existing sessions
+    tokenVersion  Int     @default(0)
 
     // Profile fields
     fullName       String?
@@ -59,6 +66,7 @@ model User {
     dividends               DividendPayout[]
     notifications           Notification[]
     notificationPreferences NotificationPreference?
+    announcements           Announcement[]
 
     @@index([status])
     @@index([role])
@@ -103,6 +111,8 @@ model SavingsTransaction {
     @@index([accountId])
     @@index([type])
     @@index([createdAt])
+    @@index([userId, createdAt])
+    @@index([userId, type, createdAt])
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -384,6 +394,25 @@ model NotificationPreference {
     system             Boolean  @default(true)
     createdAt          DateTime @default(now())
     updatedAt          DateTime @updatedAt
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// MODULE 9: Announcements / Notice Board
+// ────────────────────────────────────────────────────────────────────────────
+
+model Announcement {
+    id        String   @id @default(cuid())
+    title     String
+    content   String
+    // Priority: LOW | NORMAL | HIGH | URGENT
+    priority  String   @default("NORMAL")
+    createdBy String
+    author    User     @relation(fields: [createdBy], references: [id])
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    @@index([priority])
+    @@index([createdAt])
 }
 
 // ────────────────────────────────────────────────────────────────────────────

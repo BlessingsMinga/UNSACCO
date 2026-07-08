@@ -228,10 +228,11 @@ function DepositDialog({ open, onOpenChange, onDone, balance }: { open: boolean;
         description: description || undefined,
       });
       if (res.checkout_url) {
-        // PayChangu Standard Checkout - redirect to hosted payment page
+        // PayChangu Standard Checkout - open in new tab so user can return
         setAmount(""); setDescription("");
         onOpenChange(false);
-        window.location.href = res.checkout_url;
+        window.open(res.checkout_url, "_blank", "noopener,noreferrer");
+        toast.success("Payment page opened in a new tab. Complete your payment there and return here to see the updated balance.", { duration: 6000 });
       } else if (res.message && res.status === "PENDING") {
         // PayChangu flow - user needs to authorize on phone
         toast.success(`Payment prompt sent to your phone. Check your mobile money app and enter your PIN to complete the deposit.`, { duration: 8000 });

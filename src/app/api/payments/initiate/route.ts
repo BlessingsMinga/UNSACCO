@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { requireAuth } from "@/lib/auth";
 import { ok, fail, handleApiError, generateReference } from "@/lib/api";
 import { initiateStandardCheckout } from "@/lib/paychangu";
+import { rateLimitOrThrow } from "@/lib/rate-limit";
 
 /**
  * POST /api/payments/initiate
@@ -14,6 +15,7 @@ import { initiateStandardCheckout } from "@/lib/paychangu";
  */
 export async function POST(request: NextRequest) {
     try {
+        rateLimitOrThrow(request, "PAYMENT");
         const user = await requireAuth();
         const { loanId, amount } = await request.json();
 

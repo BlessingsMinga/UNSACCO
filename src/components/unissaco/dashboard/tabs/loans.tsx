@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { api, ApiError } from "@/lib/api-client";
-import { formatCurrency, formatDate, formatDateTime, STATUS_COLORS } from "@/lib/constants";
+import { formatCurrency, formatDate } from "@/lib/constants";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -174,15 +174,15 @@ export function LoansTab() {
     setSubmitting(true);
     try {
       if (repayMethod === "PAYCHANGU") {
-        // Use PayChangu Standard Checkout - redirect to hosted payment page
+        // Use PayChangu Standard Checkout - open in new tab
         const res = await api.post<{ checkout_url: string; tx_ref: string }>("/api/payments/initiate", {
           loanId,
           amount: Number(repayAmount),
         });
         setRepayOpen(null);
         setRepayAmount("");
-        // Redirect user to PayChangu's hosted checkout page
-        window.location.href = res.checkout_url;
+        window.open(res.checkout_url, "_blank", "noopener,noreferrer");
+        toast.success("Payment page opened in a new tab. Complete your payment there and return here to confirm.", { duration: 6000 });
       } else {
         // Deduct directly from savings
         await api.post(`/api/loans/${loanId}/repay`, { amount: Number(repayAmount), method: repayMethod });

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { useApp } from "@/lib/store";
 import type { ApiUser } from "@/lib/api-client";
@@ -11,7 +11,16 @@ import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { BrandLogo } from "@/components/unissaco/brand-logo";
 import { StatusBadge } from "@/components/unissaco/shared/status-badge";
 import { NotificationBell } from "@/components/unissaco/shared/notification-bell";
-import { LucideIcon, Menu, LogOut, ChevronRight } from "lucide-react";
+import { ThemeToggle } from "@/components/unissaco/shared/theme-toggle";
+import {
+  LucideIcon,
+  Menu,
+  LogOut,
+  ChevronRight,
+  Moon,
+  Sun,
+  Monitor,
+} from "lucide-react";
 import { toast } from "sonner";
 
 export interface NavItem {
@@ -185,6 +194,7 @@ export function DashboardLayout({
               </div>
             </div>
             <div className="flex items-center gap-2">
+              <ThemeToggle />
               <NotificationBell />
               <Avatar className="size-9">
                 <AvatarFallback className="brand-gradient text-white text-xs font-semibold">

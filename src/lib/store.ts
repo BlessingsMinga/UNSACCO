@@ -16,6 +16,7 @@ export type DashboardTab =
   | "investments"
   | "dividends"
   | "reports"
+  | "notifications"
   | "profile";
 
 export type AdminTab = "overview" | "members" | "loans" | "dividends" | "transactions" | "audit";

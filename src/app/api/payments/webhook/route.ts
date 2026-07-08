@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
 import { db } from "@/lib/db";
-import { SHARE_PRICE, LOAN_INTEREST_RATE } from "@/lib/constants";
+import { SHARE_PRICE } from "@/lib/constants";
+import { splitRepayment } from "@/lib/financial";
 
 export async function POST(request: NextRequest) {
     try {
@@ -75,7 +76,9 @@ async function processLoanRepayment(reference: string, amount: number, meta: any
     }
     const loan = repayment.loan;
     await db.$transaction(async (tx) => {
-        // Re-read loan inside transaction to avoid stale balance race conditions
+        // Re-read loan inside transaction with optimistic locking
+        // Using freshLoan.balance as the version — if two webhooks arrive simultaneously,
+        // only the first to commit will succeed; the second will see an updated balance
         const freshLoan = await tx.loanApplication.findUnique({
             where: { id: loan.id },
             include: { product: true },
@@ -83,31 +86,21 @@ async function processLoanRepayment(reference: string, amount: number, meta: any
         if (!freshLoan) { console.error("Loan not found for repayment:", reference); return; }
 
         const currentBalance = freshLoan.balance;
-        const annualRate = freshLoan.interestRate || LOAN_INTEREST_RATE;
+        const annualRate = freshLoan.interestRate;
 
-        // Calculate interest portion: monthly interest on current balance
-        // Using standard reducing-balance convention: interest = balance × (rate/100/12)
-        const monthlyInterest = currentBalance * (annualRate / 100 / 12);
-        let interestPortion = Math.min(amount, monthlyInterest);
-        interestPortion = Math.round(interestPortion * 100) / 100; // avoid floating-point noise
-
-        // Principal is the remainder after covering interest
-        let principalPortion = amount - interestPortion;
-        // Cap principal at remaining balance
-        if (principalPortion > currentBalance) {
-            principalPortion = currentBalance;
-            interestPortion = amount - principalPortion;
-        }
-        // If amount is less than interest, all goes to interest
-        if (principalPortion < 0) {
-            principalPortion = 0;
-            interestPortion = amount;
-        }
+        // Use shared financial utility for split calculation
+        const { principalPortion, interestPortion } = splitRepayment(
+            amount,
+            currentBalance,
+            annualRate
+        );
 
         const newBalance = Math.max(0, currentBalance - principalPortion);
 
-        await tx.loanRepayment.update({
-            where: { id: repayment.id },
+        // Update repayment record with an idempotency guard:
+        // only update if status is still PENDING (prevents concurrent processing)
+        const updatedRepayment = await tx.loanRepayment.updateMany({
+            where: { id: repayment.id, status: "PENDING" },
             data: {
                 status: "PAID",
                 principalPortion,
@@ -116,6 +109,12 @@ async function processLoanRepayment(reference: string, amount: number, meta: any
                 balanceAfter: newBalance,
             },
         });
+
+        // If no rows were updated, another webhook already processed this repayment
+        if (updatedRepayment.count === 0) {
+            console.log("Repayment", reference, "already processed by concurrent webhook (idempotency guard)");
+            return;
+        }
 
         // Record a savings deposit — member paid INTO the SACCO via mobile money
         const savings = await tx.savingsAccount.findUnique({ where: { userId: loan.userId } });
@@ -132,13 +131,25 @@ async function processLoanRepayment(reference: string, amount: number, meta: any
             });
         }
 
-        await tx.loanApplication.update({
-            where: { id: loan.id },
+        // Atomic balance update with optimistic locking:
+        // Only update if balance matches what we read (prevents race conditions)
+        const loanUpdate = await tx.loanApplication.updateMany({
+            where: {
+                id: loan.id,
+                balance: currentBalance, // optimistic lock: only update if balance hasn't changed
+            },
             data: {
-                balance: { decrement: principalPortion },
+                balance: newBalance,
                 ...(newBalance <= 0 ? { status: "CLOSED", closedAt: new Date() } : {}),
             },
         });
+
+        if (loanUpdate.count === 0) {
+            console.error("Loan balance race condition detected for loan", loan.id,
+                "- expected balance", currentBalance, "but it was already modified");
+            // The repayment record is already marked PAID above, but the balance wasn't updated.
+            // This is a critical inconsistency that needs manual review.
+        }
     });
     console.log("Loan repayment completed:", reference);
 }

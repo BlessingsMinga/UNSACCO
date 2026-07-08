@@ -1,13 +1,20 @@
 import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
 import { requireAuth, audit } from "@/lib/auth";
-import { ok, fail, handleApiError, parseBody, generateReference } from "@/lib/api";
+import { ok, fail, handleApiError, parseBody } from "@/lib/api";
 import { loanApplicationSchema } from "@/lib/validation";
-import { LOAN_ELIGIBILITY_MIN_SAVINGS, LOAN_ELIGIBILITY_SAVINGS_RATIO, MIN_SHAREHOLDING_FOR_LOAN } from "@/lib/constants";
+import { LOAN_ELIGIBILITY_MIN_SAVINGS, MIN_SHAREHOLDING_FOR_LOAN } from "@/lib/constants";
 import { createNotification } from "@/lib/notifications/create";
+import { rateLimitOrThrow } from "@/lib/rate-limit";
+import {
+  calculateMonthlyPayment,
+  calculateTotalInterest,
+  calculateTotalRepayable,
+} from "@/lib/financial";
 
 export async function POST(req: NextRequest) {
   try {
+    rateLimitOrThrow(req, "PAYMENT");
     const user = await requireAuth();
     const data = await parseBody(req, loanApplicationSchema);
 
@@ -45,12 +52,12 @@ export async function POST(req: NextRequest) {
       return fail("You already have an active loan for this product. Please clear your existing loan before applying for a new one.");
     }
 
-    // Calculate monthly installment (simple interest, equal principal)
+    // Calculate loan terms using standard reducing-balance amortization
     const interestRate = product.interestRate;
     const repaymentPeriod = product.repaymentPeriod;
-    const totalInterest = (data.amountApplied * interestRate * repaymentPeriod) / (100 * 12);
-    const totalRepayable = data.amountApplied + totalInterest;
-    const monthlyInstallment = totalRepayable / repaymentPeriod;
+    const monthlyInstallment = calculateMonthlyPayment(data.amountApplied, interestRate, repaymentPeriod);
+    const totalInterest = calculateTotalInterest(data.amountApplied, interestRate, repaymentPeriod);
+    const totalRepayable = calculateTotalRepayable(data.amountApplied, interestRate, repaymentPeriod);
 
     const loan = await db.loanApplication.create({
       data: {

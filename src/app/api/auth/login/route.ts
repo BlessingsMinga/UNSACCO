@@ -2,11 +2,13 @@ import { db } from "@/lib/db";
 import { createSession, audit, verifyPassword } from "@/lib/auth";
 import { loginSchema } from "@/lib/validation";
 import { ok, fail, handleApiError, parseBody } from "@/lib/api";
+import { rateLimitOrThrow } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 
 export async function POST(req: Request) {
   try {
+    rateLimitOrThrow(req, "AUTH");
     const data = await parseBody(req, loginSchema);
     const user = await db.user.findUnique({ where: { email: data.email } });
     if (!user || !verifyPassword(data.password, user.passwordHash)) {

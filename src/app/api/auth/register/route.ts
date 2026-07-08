@@ -3,11 +3,13 @@ import { createSession, audit, hashPassword } from "@/lib/auth";
 import { registerSchema } from "@/lib/validation";
 import { ok, fail, handleApiError, parseBody, generateReference } from "@/lib/api";
 import { MEMBERSHIP_FEE } from "@/lib/constants";
+import { rateLimitOrThrow } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 
 export async function POST(req: Request) {
   try {
+    rateLimitOrThrow(req, "AUTH");
     const data = await parseBody(req, registerSchema);
 
     const existing = await db.user.findFirst({

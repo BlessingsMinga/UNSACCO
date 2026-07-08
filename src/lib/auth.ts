@@ -1,6 +1,7 @@
 // Lightweight, dependency-free auth utilities.
 // - Password hashing: Node.js scrypt + per-user salt (N=16384, r=8, p=1)
 // - Sessions: HMAC-SHA256 signed JWT-style tokens (stateless, httpOnly cookie)
+// - Token versioning: password changes invalidate all existing sessions
 
 import crypto from "crypto";
 import { cookies } from "next/headers";
@@ -44,7 +45,11 @@ function b64url(input: string | Buffer): string {
 
 function sign(payload: object): string {
   const header = { alg: "HS256", typ: "JWT" };
-  const body = { ...payload, iat: Math.floor(Date.now() / 1000), exp: Math.floor(Date.now() / 1000) + TOKEN_TTL_SECONDS };
+  const body = {
+    ...payload,
+    iat: Math.floor(Date.now() / 1000),
+    exp: Math.floor(Date.now() / 1000) + TOKEN_TTL_SECONDS,
+  };
   const head = b64url(JSON.stringify(header));
   const data = b64url(JSON.stringify(body));
   const sig = crypto.createHmac("sha256", SESSION_SECRET).update(`${head}.${data}`).digest();
@@ -72,7 +77,19 @@ function verify<T = unknown>(token: string): T | null {
 // ── Session cookie helpers (server-side, route handlers) ─────────────────────
 
 export async function createSession(userId: string, role: string): Promise<void> {
-  const token = sign({ sub: userId, role });
+  // Fetch current tokenVersion from DB and embed it in the token
+  // This ensures password changes invalidate all existing sessions
+  let tokenVersion = 0;
+  try {
+    const result = await db.$queryRawUnsafe<{ tokenVersion: number }[]>(
+      `SELECT "tokenVersion" FROM "User" WHERE id = $1`, userId
+    );
+    tokenVersion = result[0]?.tokenVersion ?? 0;
+  } catch {
+    // tokenVersion column may not exist yet (pre-migration)
+    tokenVersion = 0;
+  }
+  const token = sign({ sub: userId, role, tokenVersion });
   const store = await cookies();
   store.set(COOKIE_NAME, token, {
     httpOnly: true,
@@ -88,7 +105,7 @@ export async function destroySession(): Promise<void> {
   store.delete(COOKIE_NAME);
 }
 
-type SessionPayload = { sub: string; role: string };
+type SessionPayload = { sub: string; role: string; tokenVersion?: number };
 
 export async function getSessionToken(): Promise<string | undefined> {
   const store = await cookies();
@@ -135,6 +152,20 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
   if (user.status === "SUSPENDED" || user.status === "CLOSED") {
     return null;
   }
+  // Token version mismatch — password was changed since this token was issued
+  if (typeof payload.tokenVersion === "number" && payload.tokenVersion > 0) {
+    try {
+      const result = await db.$queryRawUnsafe<{ tokenVersion: number }[]>(
+        `SELECT "tokenVersion" FROM "User" WHERE id = $1`, payload.sub
+      );
+      const currentVersion = result[0]?.tokenVersion ?? 0;
+      if (payload.tokenVersion < currentVersion) {
+        return null; // session invalidated
+      }
+    } catch {
+      // tokenVersion column may not exist yet after migration
+    }
+  }
   return user;
 }
 
@@ -165,5 +196,21 @@ export async function audit(
   } catch (e) {
     // audit failures must never break the main flow
     console.error("Audit log failed:", e);
+  }
+}
+
+/**
+ * Invalidate all sessions for a user by incrementing their token version.
+ * Should be called when a user changes their password.
+ * Uses raw SQL since tokenVersion field may not be in generated Prisma client yet.
+ */
+export async function incrementTokenVersion(userId: string): Promise<void> {
+  try {
+    await db.$executeRawUnsafe(
+      `UPDATE "User" SET "tokenVersion" = COALESCE("tokenVersion", 0) + 1 WHERE id = $1`,
+      userId
+    );
+  } catch (e) {
+    console.error("[AUTH] Failed to increment token version:", e);
   }
 }

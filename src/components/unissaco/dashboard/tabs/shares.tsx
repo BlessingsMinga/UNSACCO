@@ -211,12 +211,13 @@ function BuySharesDialog({ open, onOpenChange, onDone, savingsBalance, currentSh
     try {
       const res = await api.post<{ checkout_url?: string; numberOfShares: number; savingsBalance: number; message?: string; status?: string }>("/api/shares/buy", {
         numberOfShares: n,
-        payment_method: paymentMethod,
+        paymentMethod,
       });
 
       if (res.checkout_url) {
-        // PayChangu Standard Checkout - redirect to hosted payment page
-        window.location.href = res.checkout_url;
+        // PayChangu Standard Checkout - open in new tab so user can return
+        window.open(res.checkout_url, "_blank", "noopener,noreferrer");
+        toast.success("Payment page opened in a new tab. Complete your payment there.", { duration: 6000 });
       } else if (res.message && res.status === "PENDING") {
         // PayChangu flow
         toast.success(`Payment prompt sent to your phone. Check your mobile money app and enter your PIN to complete the purchase.`, { duration: 8000 });

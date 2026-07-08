@@ -5,11 +5,13 @@ import { ok, fail, handleApiError, parseBody, generateReference } from "@/lib/ap
 import { createNotification } from "@/lib/notifications/create";
 import { MIN_SAVINGS_DEPOSIT } from "@/lib/constants";
 import { disburseToMobileMoney } from "@/lib/paychangu";
+import { rateLimitOrThrow } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 
 export async function POST(req: Request) {
   try {
+    rateLimitOrThrow(req, "PAYMENT");
     const user = await requireAuth();
     const data = await parseBody(req, withdrawalSchema);
 

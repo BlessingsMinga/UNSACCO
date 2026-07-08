@@ -11,6 +11,7 @@ import {
   Gift,
   FileText,
   UserCircle,
+  Bell,
 } from "lucide-react";
 import { OverviewTab } from "@/components/unissaco/dashboard/tabs/overview";
 import { SavingsTab } from "@/components/unissaco/dashboard/tabs/savings";
@@ -20,6 +21,7 @@ import { DividendsTab } from "@/components/unissaco/dashboard/tabs/dividends";
 import { InvestmentsTab } from "@/components/unissaco/dashboard/tabs/investments";
 import { ReportsTab } from "@/components/unissaco/dashboard/tabs/reports";
 import { ProfileTab } from "@/components/unissaco/dashboard/tabs/profile";
+import { NotificationSettingsTab } from "@/components/unissaco/dashboard/tabs/notifications-settings";
 
 const NAV: NavItem[] = [
   { key: "overview", label: "Overview", icon: LayoutDashboard },
@@ -29,6 +31,7 @@ const NAV: NavItem[] = [
   { key: "investments", label: "Investments", icon: Sprout },
   { key: "dividends", label: "Dividends", icon: Gift },
   { key: "reports", label: "Reports", icon: FileText },
+  { key: "notifications", label: "Notifications", icon: Bell },
   { key: "profile", label: "Profile", icon: UserCircle },
 ];
 
@@ -51,6 +54,7 @@ export function MemberDashboard() {
       {dashboardTab === "investments" && <InvestmentsTab />}
       {dashboardTab === "dividends" && <DividendsTab />}
       {dashboardTab === "reports" && <ReportsTab />}
+      {dashboardTab === "notifications" && <NotificationSettingsTab />}
       {dashboardTab === "profile" && <ProfileTab />}
     </DashboardLayout>
   );

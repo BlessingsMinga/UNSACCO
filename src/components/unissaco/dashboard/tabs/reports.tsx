@@ -17,6 +17,7 @@ import {
   ArrowDownLeft,
   ArrowUpRight,
   Info,
+  Table,
 } from "lucide-react";
 
 type Statement = {
@@ -78,6 +79,11 @@ export function ReportsTab() {
     toast.success("Statement downloaded.");
   }
 
+  function downloadCsv() {
+    window.open("/api/reports/export", "_blank");
+    toast.success("CSV download started.");
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 no-print">
@@ -88,6 +94,7 @@ export function ReportsTab() {
         <div className="flex gap-2 flex-wrap">
           <Button variant="outline" size="sm" onClick={copyText} className="gap-1.5"><Copy className="size-4" /> Copy</Button>
           <Button variant="outline" size="sm" onClick={downloadTxt} className="gap-1.5"><Download className="size-4" /> .txt</Button>
+          <Button variant="outline" size="sm" onClick={downloadCsv} className="gap-1.5"><Table className="size-4" /> CSV</Button>
           <Button size="sm" onClick={() => window.print()} className="gap-1.5"><Printer className="size-4" /> Print / PDF</Button>
         </div>
       </div>
