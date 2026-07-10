@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useApp } from "@/lib/store";
 import { api, ApiError } from "@/lib/api-client";
 import { Button } from "@/components/ui/button";
@@ -46,10 +46,12 @@ export function AuthScreen() {
   const { view, setView, setUser } = useApp();
   const mode: Mode = view === "register" ? "register" : "login";
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const [showPwd, setShowPwd] = useState(false);
+  const googleBtnRef = useRef<HTMLDivElement>(null);
 
   // login state
-  const [loginEmail, setLoginEmail] = useState("admin@unissacco.ac.mw");
+  const [loginEmail, setLoginEmail] = useState("");
   const [loginPwd, setLoginPwd] = useState("");
 
   // register state
@@ -69,6 +71,82 @@ export function AuthScreen() {
   function switchMode(m: Mode) {
     setErrors({});
     setView(m);
+  }
+
+  // Google Sign-In — initialize once when script loads
+  const googleInitialized = useRef(false);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
+    if (!clientId) return;
+    if (document.getElementById("google-gsi-script")) return;
+
+    const script = document.createElement("script");
+    script.id = "google-gsi-script";
+    script.src = "https://accounts.google.com/gsi/client";
+    script.async = true;
+    script.defer = true;
+    script.onload = () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const google = (window as any)?.google?.accounts?.id;
+      if (!google || googleInitialized.current) return;
+      googleInitialized.current = true;
+
+      google.initialize({
+        client_id: clientId,
+        callback: async (response: { credential?: string }) => {
+          if (!response?.credential) {
+            toast.error("Google sign-in failed. No credential received.");
+            setGoogleLoading(false);
+            return;
+          }
+
+          try {
+            const res = await api.post<
+              { id: string; email: string; fullName: string; role: string; status: string; studentId: string }
+            >("/api/auth/google", { credential: response.credential });
+            setUser(res);
+            toast.success(`Welcome, ${res.fullName?.split(" ")[0] ?? "member"}!`);
+          } catch (err) {
+            const msg = err instanceof ApiError ? err.message : "Google sign-in failed. Please try again.";
+            toast.error(msg);
+          } finally {
+            setGoogleLoading(false);
+          }
+        },
+      });
+    };
+    document.body.appendChild(script);
+
+    return () => {
+      const s = document.getElementById("google-gsi-script");
+      if (s) s.remove();
+    };
+  }, []);
+
+  async function handleGoogleSignIn() {
+    const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
+    if (!clientId) {
+      toast.error("Google sign-in is not configured. Contact the administrator.");
+      return;
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const google = (window as any)?.google?.accounts?.id;
+    if (!google) {
+      toast.error("Google sign-in is not available. Please try again.");
+      return;
+    }
+
+    setGoogleLoading(true);
+
+    // Trigger Google One Tap — initialize was already called in useEffect
+    try {
+      google.prompt(() => setGoogleLoading(false));
+    } catch {
+      setGoogleLoading(false);
+    }
   }
 
   async function handleLogin(e: React.FormEvent) {
@@ -269,6 +347,55 @@ export function AuthScreen() {
                   {loading && <Loader2 className="size-4 animate-spin mr-2" />}
                   Log in
                 </Button>
+
+                {/* Google sign-in divider */}
+                <div className="relative my-4">
+                  <div className="absolute inset-0 flex items-center">
+                    <span className="w-full border-t" />
+                  </div>
+                  <div className="relative flex justify-center text-xs uppercase">
+                    <span className="bg-background px-2 text-muted-foreground">Or continue with</span>
+                  </div>
+                </div>
+
+                {/* Google sign-in button */}
+                <div className="flex justify-center">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="lg"
+                    className="w-full gap-2"
+                    disabled={googleLoading}
+                    onClick={handleGoogleSignIn}
+                  >
+                    {googleLoading ? (
+                      <Loader2 className="size-4 animate-spin" />
+                    ) : (
+                      <svg className="size-5" viewBox="0 0 24 24">
+                        <path
+                          d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"
+                          fill="#4285F4"
+                        />
+                        <path
+                          d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+                          fill="#34A853"
+                        />
+                        <path
+                          d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
+                          fill="#FBBC05"
+                        />
+                        <path
+                          d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
+                          fill="#EA4335"
+                        />
+                      </svg>
+                    )}
+                    {googleLoading ? "Signing in..." : "Sign in with Google"}
+                  </Button>
+                </div>
+
+                {/* Hidden container for Google One Tap button fallback */}
+                <div ref={googleBtnRef} className="hidden" />
               </form>
             ) : (
               <form onSubmit={handleRegister} className="space-y-4">
@@ -348,6 +475,51 @@ export function AuthScreen() {
                   {loading && <Loader2 className="size-4 animate-spin mr-2" />}
                   Create account
                 </Button>
+                {/* Google sign-in divider */}
+                <div className="relative my-4">
+                  <div className="absolute inset-0 flex items-center">
+                    <span className="w-full border-t" />
+                  </div>
+                  <div className="relative flex justify-center text-xs uppercase">
+                    <span className="bg-background px-2 text-muted-foreground">Or sign up with</span>
+                  </div>
+                </div>
+
+                {/* Google sign-in button */}
+                <div className="flex justify-center">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="lg"
+                    className="w-full gap-2"
+                    disabled={googleLoading}
+                    onClick={handleGoogleSignIn}
+                  >
+                    {googleLoading ? (
+                      <Loader2 className="size-4 animate-spin" />
+                    ) : (
+                      <svg className="size-5" viewBox="0 0 24 24">
+                        <path
+                          d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"
+                          fill="#4285F4"
+                        />
+                        <path
+                          d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+                          fill="#34A853"
+                        />
+                        <path
+                          d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
+                          fill="#FBBC05"
+                        />
+                        <path
+                          d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
+                          fill="#EA4335"
+                        />
+                      </svg>
+                    )}
+                    {googleLoading ? "Signing up..." : "Sign up with Google"}
+                  </Button>
+                </div>
               </form>
             )}
 
@@ -369,12 +541,6 @@ export function AuthScreen() {
               )}
             </div>
 
-            <Card className="mt-5 p-3.5 bg-muted/40 border-dashed">
-              <p className="text-xs font-medium text-muted-foreground mb-1.5">Demo accounts</p>
-              <div className="text-xs text-muted-foreground">
-                <p>Admin: <code className="bg-background px-1 rounded">admin@unissacco.ac.mw</code> / <code className="bg-background px-1 rounded">Admin@123</code></p>
-              </div>
-            </Card>
           </motion.div>
         </div>
       </div>

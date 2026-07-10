@@ -5,7 +5,7 @@
  */
 import { NextRequest } from "next/server";
 import { requireAdmin, audit } from "@/lib/auth";
-import { ok, fail, handleApiError } from "@/lib/api";
+import { ok, handleApiError } from "@/lib/api";
 import { rateLimitOrThrow } from "@/lib/rate-limit";
 import { runAllCronJobs } from "@/lib/cron";
 

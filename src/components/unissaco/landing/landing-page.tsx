@@ -551,9 +551,6 @@ export function LandingPage() {
             <p className="text-xs text-muted-foreground">
               &copy; {new Date().getFullYear()} UNISSACO. Built for university students.
             </p>
-            <p className="text-xs text-muted-foreground">
-              Admin: <code className="bg-muted px-1.5 py-0.5 rounded">admin@unissacco.ac.mw</code> / <code className="bg-muted px-1.5 py-0.5 rounded">Admin@123</code>
-            </p>
           </div>
         </div>
       </footer>
