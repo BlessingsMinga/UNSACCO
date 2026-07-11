@@ -9,7 +9,7 @@ export const runtime = "nodejs";
 
 export async function POST(req: Request) {
   try {
-    rateLimitOrThrow(req, "AUTH");
+    await rateLimitOrThrow(req, "AUTH");
     const data = await parseBody(req, registerSchema);
 
     const existing = await db.user.findFirst({

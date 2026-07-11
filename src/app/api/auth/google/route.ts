@@ -16,7 +16,7 @@ const googleClient = new OAuth2Client(process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID);
 
 export async function POST(req: Request) {
     try {
-        rateLimitOrThrow(req, "AUTH");
+        await rateLimitOrThrow(req, "AUTH");
 
         const googleSchema = z.object({
             credential: z.string().min(1, "Credential token is required"),
@@ -44,7 +44,10 @@ export async function POST(req: Request) {
 
         if (user) {
             // Existing Google-linked user — check status
-            if (user.role === "MEMBER" && (user.status === "SUSPENDED" || user.status === "CLOSED")) {
+            if (user.status !== "ACTIVE") {
+                if (user.status === "PENDING") {
+                    return fail("Your membership is awaiting administrator approval.", 403);
+                }
                 return fail(
                     user.status === "SUSPENDED"
                         ? "Your account is suspended. Contact the administrator."
@@ -110,7 +113,11 @@ export async function POST(req: Request) {
             }
         }
 
-        // Create session
+        if (user.status !== "ACTIVE") {
+            return fail("Your membership is awaiting administrator approval.", 403);
+        }
+
+        // Create session only for an approved account.
         await createSession(user.id, user.role);
         await audit(user.id, "LOGIN", "User", user.id, `User logged in via Google (${email})`);
 

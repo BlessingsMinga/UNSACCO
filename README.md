@@ -28,7 +28,7 @@ The system is built as a full-stack **Next.js** application with a **PostgreSQL*
 | **UI**         | [React](https://react.dev/) 19, [Tailwind CSS](https://tailwindcss.com/) 4, [shadcn/ui](https://ui.shadcn.com/) |
 | **State**      | [Zustand](https://github.com/pmndrs/zustand), [React Query](https://tanstack.com/query/latest) (TanStack Query) |
 | **Forms**      | [React Hook Form](https://react-hook-form.com/) + [Zod](https://zod.dev/) validation                            |
-| **Auth**       | [NextAuth.js](https://next-auth.js.org/) v4                                                                     |
+| **Auth**       | HMAC-signed, httpOnly application sessions                                                                      |
 | **Database**   | [PostgreSQL](https://www.postgresql.org/) via [Prisma](https://www.prisma.io/) ORM                              |
 | **Animations** | [Framer Motion](https://www.framer.com/motion/), [Lottie](https://airbnb.io/lottie/)                            |
 | **Charts**     | [Recharts](https://recharts.org/)                                                                               |

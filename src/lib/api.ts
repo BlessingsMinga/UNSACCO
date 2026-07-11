@@ -1,5 +1,6 @@
 // API helper: consistent JSON responses + error handling for route handlers.
 import { NextResponse } from "next/server";
+import crypto from "crypto";
 
 export type ApiError = {
   error: string;
@@ -47,7 +48,11 @@ export function handleApiError(error: unknown) {
       }));
       return fail("Validation failed", 422, { details });
     }
-    return fail(error.message || "Something went wrong", 400);
+    // Expected application errors above are safe to expose. Everything else is
+    // an internal failure: log it server-side and keep implementation details out
+    // of the response.
+    console.error("Unhandled API error", error);
+    return fail("Internal server error", 500);
   }
   return fail("Internal server error", 500);
 }
@@ -58,7 +63,7 @@ export function generateReference(prefix: string): string {
   const yy = String(d.getFullYear()).slice(2);
   const mm = String(d.getMonth() + 1).padStart(2, "0");
   const dd = String(d.getDate()).padStart(2, "0");
-  const rand = Math.random().toString(36).slice(2, 6).toUpperCase();
+  const rand = crypto.randomBytes(8).toString("hex").toUpperCase();
   return `${prefix}-${yy}${mm}${dd}-${rand}`;
 }
 

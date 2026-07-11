@@ -16,11 +16,11 @@ describe("generateReference", () => {
     expect(ref).toContain(`${yy}${mm}${dd}`);
   });
 
-  it("should include a 4-char random suffix", () => {
+  it("should include a cryptographically secure 16-character suffix", () => {
     const ref = generateReference("LNR");
     const parts = ref.split("-");
     expect(parts.length).toBe(3);
-    expect(parts[2]).toMatch(/^[A-Z0-9]{4}$/);
+    expect(parts[2]).toMatch(/^[A-F0-9]{16}$/);
   });
 
   it("should generate unique references on successive calls", () => {
@@ -36,7 +36,7 @@ describe("generateReference", () => {
     const prefixes = ["DEP", "WDR", "LNR", "LND", "PCD", "SHB", "FEE", "SAV"];
     for (const p of prefixes) {
       const ref = generateReference(p);
-      expect(ref).toMatch(new RegExp(`^${p}-\\d{6}-[A-Z0-9]{4}$`));
+      expect(ref).toMatch(new RegExp(`^${p}-\\d{6}-[A-F0-9]{16}$`));
     }
   });
 });

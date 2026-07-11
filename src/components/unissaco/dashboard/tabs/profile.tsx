@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { api, ApiError } from "@/lib/api-client";
 import { formatDate } from "@/lib/constants";
 import { Card } from "@/components/ui/card";
@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   Select,
   SelectContent,
@@ -18,7 +18,18 @@ import {
 } from "@/components/ui/select";
 import { StatusBadge } from "@/components/unissaco/shared/status-badge";
 import { toast } from "sonner";
-import { Loader2, Save, UserCircle, Mail, Phone, MapPin, Users, Calendar } from "lucide-react";
+import {
+  Loader2,
+  Save,
+  UserCircle,
+  Mail,
+  Phone,
+  MapPin,
+  Users,
+  Calendar,
+  Camera,
+  Trash2,
+} from "lucide-react";
 
 type Profile = {
   id: string;
@@ -45,7 +56,9 @@ export function ProfileTab() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [form, setForm] = useState<Partial<Profile>>({});
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     (async () => {
@@ -84,6 +97,75 @@ export function ProfileTab() {
     }
   }
 
+  async function handleAvatarUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Client-side validation
+    const allowedTypes = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+    if (!allowedTypes.includes(file.type)) {
+      toast.error("Invalid file type. Please select a JPEG, PNG, WebP, or GIF image.");
+      return;
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error("File too large. Maximum size is 2MB.");
+      return;
+    }
+
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append("avatar", file);
+
+      const res = await fetch("/api/members/avatar", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || "Upload failed");
+      }
+
+      const data = await res.json();
+      toast.success("Avatar updated successfully.");
+
+      // Update local state immediately
+      if (profile) {
+        setProfile({ ...profile, avatarUrl: data.avatarUrl });
+      }
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to upload avatar.");
+    } finally {
+      setUploading(false);
+      // Reset file input
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  }
+
+  async function handleRemoveAvatar() {
+    if (!confirm("Remove your profile picture?")) return;
+
+    setUploading(true);
+    try {
+      const res = await fetch("/api/members/avatar", { method: "DELETE" });
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || "Remove failed");
+      }
+
+      toast.success("Avatar removed.");
+      if (profile) {
+        setProfile({ ...profile, avatarUrl: null });
+      }
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to remove avatar.");
+    } finally {
+      setUploading(false);
+    }
+  }
+
   if (loading || !profile) {
     return (
       <div className="space-y-6">
@@ -102,12 +184,50 @@ export function ProfileTab() {
         <p className="text-sm text-muted-foreground">Manage your personal and membership information</p>
       </div>
 
-      {/* Profile header */}
+      {/* Profile header with avatar upload */}
       <Card className="p-6">
         <div className="flex flex-col sm:flex-row sm:items-center gap-5">
-          <Avatar className="size-20 border-2 border-border">
-            <AvatarFallback className="brand-gradient text-white text-2xl font-bold">{initials}</AvatarFallback>
-          </Avatar>
+          {/* Avatar with upload overlay */}
+          <div className="relative group size-20 shrink-0">
+            <Avatar className="size-20 border-2 border-border">
+              <AvatarImage src={profile.avatarUrl ?? undefined} alt={profile.fullName ?? "Avatar"} />
+              <AvatarFallback className="brand-gradient text-white text-2xl font-bold">{initials}</AvatarFallback>
+            </Avatar>
+
+            {/* Upload overlay on hover */}
+            <div className="absolute inset-0 rounded-full bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1">
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploading}
+                className="size-8 flex items-center justify-center rounded-full bg-white/20 hover:bg-white/30 text-white transition-colors"
+                title="Upload photo"
+              >
+                <Camera className="size-4" />
+              </button>
+              {profile.avatarUrl && (
+                <button
+                  type="button"
+                  onClick={handleRemoveAvatar}
+                  disabled={uploading}
+                  className="size-8 flex items-center justify-center rounded-full bg-white/20 hover:bg-red-400/60 text-white transition-colors"
+                  title="Remove photo"
+                >
+                  <Trash2 className="size-4" />
+                </button>
+              )}
+            </div>
+
+            {/* Hidden file input */}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp,image/gif"
+              className="hidden"
+              onChange={handleAvatarUpload}
+            />
+          </div>
+
           <div className="flex-1">
             <div className="flex items-center gap-3 flex-wrap">
               <h3 className="text-xl font-bold">{profile.fullName}</h3>
@@ -125,6 +245,18 @@ export function ProfileTab() {
             <p className="font-semibold">{profile.role.replace("_", " ")}</p>
           </div>
         </div>
+
+        {/* Upload progress indicator */}
+        {uploading && (
+          <div className="mt-3 flex items-center gap-2 text-sm text-muted-foreground">
+            <Loader2 className="size-4 animate-spin" />
+            Uploading avatar...
+          </div>
+        )}
+
+        <p className="mt-3 text-xs text-muted-foreground">
+          Click your avatar to upload a new photo. JPEG, PNG, WebP or GIF. Max 2MB.
+        </p>
       </Card>
 
       {/* Editable form */}

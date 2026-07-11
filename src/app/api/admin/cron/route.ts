@@ -11,7 +11,7 @@ import { runAllCronJobs } from "@/lib/cron";
 
 export async function POST(req: NextRequest) {
     try {
-        rateLimitOrThrow(req, "ADMIN");
+        await rateLimitOrThrow(req, "ADMIN");
         const admin = await requireAdmin();
 
         const result = await runAllCronJobs();

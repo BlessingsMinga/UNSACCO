@@ -14,7 +14,7 @@ import {
 
 export async function POST(req: NextRequest) {
   try {
-    rateLimitOrThrow(req, "PAYMENT");
+    await rateLimitOrThrow(req, "PAYMENT");
     const user = await requireAuth();
     const data = await parseBody(req, loanApplicationSchema);
 

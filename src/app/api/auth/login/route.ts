@@ -8,7 +8,7 @@ export const runtime = "nodejs";
 
 export async function POST(req: Request) {
   try {
-    rateLimitOrThrow(req, "AUTH");
+    await rateLimitOrThrow(req, "AUTH");
     const data = await parseBody(req, loginSchema);
     const user = await db.user.findUnique({ where: { email: data.email } });
     if (!user || !verifyPassword(data.password, user.passwordHash)) {

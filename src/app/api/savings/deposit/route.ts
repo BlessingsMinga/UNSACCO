@@ -10,7 +10,7 @@ export const runtime = "nodejs";
 
 export async function POST(req: Request) {
   try {
-    rateLimitOrThrow(req, "PAYMENT");
+    await rateLimitOrThrow(req, "PAYMENT");
     const user = await requireAuth();
     const data = await parseBody(req, depositSchema);
 

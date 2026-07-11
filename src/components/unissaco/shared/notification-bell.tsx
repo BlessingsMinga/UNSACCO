@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { api, ApiError } from "@/lib/api-client";
 import { formatDateTime } from "@/lib/constants";
+import { subscribeToNotifications } from "@/lib/supabase/realtime";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
@@ -131,6 +132,7 @@ export function NotificationBell() {
   const [preferences, setPreferences] = useState<NotificationPrefs | null>(null);
   const [savingPrefs, setSavingPrefs] = useState(false);
   const prevUnreadRef = useRef(0);
+  const [userId, setUserId] = useState<string | null>(null);
 
   const fetchNotifications = useCallback(async () => {
     try {
@@ -152,12 +154,58 @@ export function NotificationBell() {
     }
   }, []);
 
+  // Fetch user ID from session for Realtime subscription
+  useEffect(() => {
+    (async () => {
+      try {
+        const data = await api.get<{ user: { id: string } | null }>("/api/auth/session");
+        if (data.user?.id) {
+          setUserId(data.user.id);
+        }
+      } catch {
+        // Non-critical
+      }
+    })();
+  }, []);
+
+  // Initial fetch + Realtime subscription (replaces polling)
   useEffect(() => {
     fetchNotifications();
-    // Poll every 30 seconds
-    const interval = setInterval(fetchNotifications, 30000);
-    return () => clearInterval(interval);
-  }, [fetchNotifications]);
+
+    if (!userId) return;
+
+    // Subscribe to real-time notifications
+    const unsubscribe = subscribeToNotifications(userId, (newNotif) => {
+      // Prepend the new notification to the list
+      setNotifications((prev) => {
+        const updated = [
+          {
+            id: newNotif.id,
+            type: newNotif.type,
+            title: newNotif.title,
+            message: newNotif.message,
+            link: newNotif.link,
+            read: false,
+            createdAt: newNotif.createdAt,
+          },
+          ...prev,
+        ].slice(0, 50); // Keep max 50
+        return updated;
+      });
+      setUnreadCount((prev) => prev + 1);
+      prevUnreadRef.current += 1;
+
+      // Show a toast for the new notification
+      toast(newNotif.title, {
+        description: newNotif.message,
+        duration: 5000,
+      });
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, [fetchNotifications, userId]);
 
   const markAllRead = async () => {
     try {

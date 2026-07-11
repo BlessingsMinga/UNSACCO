@@ -1,5 +1,6 @@
 // Server-side helper to create in-app notifications
 import { db } from "@/lib/db";
+import { broadcastNotification } from "@/lib/supabase/realtime";
 
 type NotificationType =
   | "DEPOSIT"
@@ -68,7 +69,7 @@ export async function createNotification(options: CreateNotificationOptions): Pr
       }
     }
 
-    await db.notification.create({
+    const notif = await db.notification.create({
       data: {
         userId: options.userId,
         type: options.type,
@@ -77,6 +78,18 @@ export async function createNotification(options: CreateNotificationOptions): Pr
         link: options.link ?? null,
         entityId: options.entityId ?? null,
       },
+    });
+
+    // Broadcast the notification via Supabase Realtime
+    broadcastNotification(options.userId, {
+      id: notif.id,
+      type: notif.type,
+      title: notif.title,
+      message: notif.message,
+      link: notif.link,
+      createdAt: notif.createdAt,
+    }).catch(() => {
+      // Broadcast failures are non-critical
     });
 
     return true;

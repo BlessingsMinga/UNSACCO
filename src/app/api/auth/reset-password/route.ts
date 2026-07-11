@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
 }
 
 async function handleResetRequest(request: NextRequest) {
-    rateLimitOrThrow(request, "AUTH");
+    await rateLimitOrThrow(request, "AUTH");
 
     const { email } = await request.json().catch(() => ({ email: "" }));
     const parsed = emailSchema.safeParse(email);
@@ -75,7 +75,7 @@ async function handleResetRequest(request: NextRequest) {
 }
 
 async function handleResetConfirm(request: NextRequest) {
-    rateLimitOrThrow(request, "AUTH");
+    await rateLimitOrThrow(request, "AUTH");
 
     const { token, password } = await request.json().catch(() => ({ token: "", password: "" }));
 

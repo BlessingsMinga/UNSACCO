@@ -15,7 +15,7 @@ import { rateLimitOrThrow } from "@/lib/rate-limit";
  */
 export async function POST(request: NextRequest) {
     try {
-        rateLimitOrThrow(request, "PAYMENT");
+        await rateLimitOrThrow(request, "PAYMENT");
         const user = await requireAuth();
         const { loanId, amount } = await request.json();
 
