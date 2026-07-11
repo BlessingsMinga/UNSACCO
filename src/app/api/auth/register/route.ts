@@ -1,5 +1,5 @@
 import { db } from "@/lib/db";
-import { createSession, audit, hashPassword } from "@/lib/auth";
+import { audit, hashPassword } from "@/lib/auth";
 import { registerSchema } from "@/lib/validation";
 import { ok, fail, handleApiError, parseBody, generateReference } from "@/lib/api";
 import { MEMBERSHIP_FEE } from "@/lib/constants";
@@ -21,39 +21,39 @@ export async function POST(req: Request) {
       return fail("This Student ID is already registered.", 409);
     }
 
-    const user = await db.user.create({
-      data: {
-        email: data.email,
-        passwordHash: hashPassword(data.password),
-        fullName: data.fullName,
-        studentId: data.studentId,
-        phone: data.phone,
-        program: data.program,
-        yearOfStudy: data.yearOfStudy,
-        gender: data.gender ?? null,
-        role: "MEMBER",
-        status: "PENDING",
-      },
+    const user = await db.$transaction(async (tx) => {
+      const createdUser = await tx.user.create({
+        data: {
+          email: data.email,
+          passwordHash: hashPassword(data.password),
+          fullName: data.fullName,
+          studentId: data.studentId,
+          phone: data.phone,
+          program: data.program,
+          yearOfStudy: data.yearOfStudy,
+          gender: data.gender ?? null,
+          role: "MEMBER",
+          status: "PENDING",
+        },
+      });
+      const savings = await tx.savingsAccount.create({ data: { userId: createdUser.id, balance: MEMBERSHIP_FEE } });
+      await tx.savingsTransaction.create({
+        data: {
+          accountId: savings.id,
+          userId: createdUser.id,
+          type: "DEPOSIT",
+          amount: MEMBERSHIP_FEE,
+          balanceAfter: MEMBERSHIP_FEE,
+          description: "Membership fee contribution (waived, credited as initial savings)",
+          reference: generateReference("FEE"),
+          method: "SYSTEM",
+          status: "COMPLETED",
+          recordedById: createdUser.id,
+        },
+      });
+      await tx.shareHolding.create({ data: { userId: createdUser.id } });
+      return createdUser;
     });
-
-    const savings = await db.savingsAccount.create({ data: { userId: user.id, balance: MEMBERSHIP_FEE } });
-    await db.savingsTransaction.create({
-      data: {
-        accountId: savings.id,
-        userId: user.id,
-        type: "DEPOSIT",
-        amount: MEMBERSHIP_FEE,
-        balanceAfter: MEMBERSHIP_FEE,
-        description: "Membership fee contribution (waived, credited as initial savings)",
-        reference: generateReference("FEE"),
-        method: "SYSTEM",
-        status: "COMPLETED",
-        recordedById: user.id,
-      },
-    });
-    await db.shareHolding.create({ data: { userId: user.id } });
-
-    await createSession(user.id, user.role);
     await audit(user.id, "REGISTER", "User", user.id, `New member registration: ${user.email}`);
 
     return ok(

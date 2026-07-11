@@ -14,7 +14,10 @@ export async function POST(req: Request) {
     if (!user || !verifyPassword(data.password, user.passwordHash)) {
       return fail("Invalid email or password.", 401);
     }
-    if (user.role === "MEMBER" && (user.status === "SUSPENDED" || user.status === "CLOSED")) {
+    if (user.status !== "ACTIVE") {
+      if (user.status === "PENDING") {
+        return fail("Your membership is awaiting administrator approval.", 403);
+      }
       return fail(
         user.status === "SUSPENDED"
           ? "Your account is suspended. Contact the administrator."

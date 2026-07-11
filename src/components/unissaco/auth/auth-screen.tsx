@@ -46,9 +46,10 @@ export function AuthScreen() {
   const { view, setView, setUser } = useApp();
   const mode: Mode = view === "register" ? "register" : "login";
   const [loading, setLoading] = useState(false);
-  const [googleLoading, setGoogleLoading] = useState(false);
+  const [, setGoogleLoading] = useState(false);
   const [showPwd, setShowPwd] = useState(false);
-  const googleBtnRef = useRef<HTMLDivElement>(null);
+  const loginGoogleBtnRef = useRef<HTMLDivElement>(null);
+  const registerGoogleBtnRef = useRef<HTMLDivElement>(null);
 
   // login state
   const [loginEmail, setLoginEmail] = useState("");
@@ -73,81 +74,80 @@ export function AuthScreen() {
     setView(m);
   }
 
-  // Google Sign-In — initialize once when script loads
+  // Google Sign-In — use Google's rendered button. One Tap can be silently
+  // suppressed by the browser, which made the previous custom buttons appear inert.
   const googleInitialized = useRef(false);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
     const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
     if (!clientId) return;
-    if (document.getElementById("google-gsi-script")) return;
-
-    const script = document.createElement("script");
-    script.id = "google-gsi-script";
-    script.src = "https://accounts.google.com/gsi/client";
-    script.async = true;
-    script.defer = true;
-    script.onload = () => {
+    const initializeGoogle = () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const google = (window as any)?.google?.accounts?.id;
-      if (!google || googleInitialized.current) return;
-      googleInitialized.current = true;
+      if (!google) return;
 
-      google.initialize({
-        client_id: clientId,
-        callback: async (response: { credential?: string }) => {
-          if (!response?.credential) {
-            toast.error("Google sign-in failed. No credential received.");
-            setGoogleLoading(false);
-            return;
-          }
+      if (!googleInitialized.current) {
+        googleInitialized.current = true;
+        google.initialize({
+          client_id: clientId,
+          callback: async (response: { credential?: string }) => {
+            if (!response?.credential) {
+              toast.error("Google sign-in failed. No credential received.");
+              return;
+            }
 
-          try {
-            const res = await api.post<
-              { id: string; email: string; fullName: string; role: string; status: string; studentId: string }
-            >("/api/auth/google", { credential: response.credential });
-            setUser(res);
-            toast.success(`Welcome, ${res.fullName?.split(" ")[0] ?? "member"}!`);
-          } catch (err) {
-            const msg = err instanceof ApiError ? err.message : "Google sign-in failed. Please try again.";
-            toast.error(msg);
-          } finally {
-            setGoogleLoading(false);
-          }
-        },
-      });
+            setGoogleLoading(true);
+            try {
+              const res = await api.post<
+                { id: string; email: string; fullName: string; role: string; status: string; studentId: string }
+              >("/api/auth/google", { credential: response.credential });
+              setUser(res);
+              toast.success(`Welcome, ${res.fullName?.split(" ")[0] ?? "member"}!`);
+            } catch (err) {
+              const msg = err instanceof ApiError ? err.message : "Google sign-in failed. Please try again.";
+              toast.error(msg);
+            } finally {
+              setGoogleLoading(false);
+            }
+          },
+        });
+      }
+
+      const container = mode === "login" ? loginGoogleBtnRef.current : registerGoogleBtnRef.current;
+      if (container) {
+        container.replaceChildren();
+        google.renderButton(container, {
+          type: "standard",
+          theme: "outline",
+          size: "large",
+          text: mode === "login" ? "signin_with" : "signup_with",
+          shape: "rectangular",
+          width: 360,
+        });
+      }
     };
-    document.body.appendChild(script);
+
+    if ((window as any)?.google?.accounts?.id) {
+      initializeGoogle();
+      return;
+    }
+
+    let script = document.getElementById("google-gsi-script") as HTMLScriptElement | null;
+    if (!script) {
+      script = document.createElement("script");
+      script.id = "google-gsi-script";
+      script.src = "https://accounts.google.com/gsi/client";
+      script.async = true;
+      script.defer = true;
+      document.body.appendChild(script);
+    }
+    script.addEventListener("load", initializeGoogle);
 
     return () => {
-      const s = document.getElementById("google-gsi-script");
-      if (s) s.remove();
+      script?.removeEventListener("load", initializeGoogle);
     };
-  }, []);
-
-  async function handleGoogleSignIn() {
-    const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
-    if (!clientId) {
-      toast.error("Google sign-in is not configured. Contact the administrator.");
-      return;
-    }
-
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const google = (window as any)?.google?.accounts?.id;
-    if (!google) {
-      toast.error("Google sign-in is not available. Please try again.");
-      return;
-    }
-
-    setGoogleLoading(true);
-
-    // Trigger Google One Tap — initialize was already called in useEffect
-    try {
-      google.prompt(() => setGoogleLoading(false));
-    } catch {
-      setGoogleLoading(false);
-    }
-  }
+  }, [mode, setUser]);
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
@@ -358,44 +358,7 @@ export function AuthScreen() {
                   </div>
                 </div>
 
-                {/* Google sign-in button */}
-                <div className="flex justify-center">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="lg"
-                    className="w-full gap-2"
-                    disabled={googleLoading}
-                    onClick={handleGoogleSignIn}
-                  >
-                    {googleLoading ? (
-                      <Loader2 className="size-4 animate-spin" />
-                    ) : (
-                      <svg className="size-5" viewBox="0 0 24 24">
-                        <path
-                          d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"
-                          fill="#4285F4"
-                        />
-                        <path
-                          d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-                          fill="#34A853"
-                        />
-                        <path
-                          d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
-                          fill="#FBBC05"
-                        />
-                        <path
-                          d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
-                          fill="#EA4335"
-                        />
-                      </svg>
-                    )}
-                    {googleLoading ? "Signing in..." : "Sign in with Google"}
-                  </Button>
-                </div>
-
-                {/* Hidden container for Google One Tap button fallback */}
-                <div ref={googleBtnRef} className="hidden" />
+                <div ref={loginGoogleBtnRef} className="flex min-h-10 justify-center" aria-label="Sign in with Google" />
               </form>
             ) : (
               <form onSubmit={handleRegister} className="space-y-4">
@@ -485,41 +448,7 @@ export function AuthScreen() {
                   </div>
                 </div>
 
-                {/* Google sign-in button */}
-                <div className="flex justify-center">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="lg"
-                    className="w-full gap-2"
-                    disabled={googleLoading}
-                    onClick={handleGoogleSignIn}
-                  >
-                    {googleLoading ? (
-                      <Loader2 className="size-4 animate-spin" />
-                    ) : (
-                      <svg className="size-5" viewBox="0 0 24 24">
-                        <path
-                          d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"
-                          fill="#4285F4"
-                        />
-                        <path
-                          d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-                          fill="#34A853"
-                        />
-                        <path
-                          d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
-                          fill="#FBBC05"
-                        />
-                        <path
-                          d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
-                          fill="#EA4335"
-                        />
-                      </svg>
-                    )}
-                    {googleLoading ? "Signing up..." : "Sign up with Google"}
-                  </Button>
-                </div>
+                <div ref={registerGoogleBtnRef} className="flex min-h-10 justify-center" aria-label="Sign up with Google" />
               </form>
             )}
 

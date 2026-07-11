@@ -148,8 +148,9 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
     },
   });
   if (!user) return null;
-  // Suspended / closed accounts cannot use the platform
-  if (user.status === "SUSPENDED" || user.status === "CLOSED") {
+  // Only approved members may use member functionality. Registration creates a
+  // PENDING user, which must not become a usable session before admin approval.
+  if (user.status !== "ACTIVE") {
     return null;
   }
   // Token version mismatch — password was changed since this token was issued

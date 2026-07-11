@@ -104,7 +104,7 @@ model SavingsTransaction {
     reference    String         @unique
     // channel/method: MOBILE_MONEY | BANK | CASH | SYSTEM
     method       String         @default("SYSTEM")
-    status       String         @default("COMPLETED") // COMPLETED | PENDING | REVERSED
+    status       String         @default("COMPLETED") // PENDING | PROCESSING | COMPLETED | FAILED | REVERSED
     recordedById String?
     createdAt    DateTime       @default(now())
 
@@ -145,7 +145,7 @@ model ShareTransaction {
     totalAmount    Float
     sharesAfter    Int
     reference      String       @unique
-    status         String       @default("COMPLETED")
+    status         String       @default("COMPLETED") // PENDING | PROCESSING | COMPLETED | FAILED
     createdAt      DateTime     @default(now())
 
     @@index([userId])
@@ -272,7 +272,7 @@ model LoanRepayment {
     balanceAfter     Float
     dueDate          DateTime
     paidDate         DateTime?
-    // Status: PENDING | PAID | PARTIAL | OVERDUE
+    // Status: PENDING | PROCESSING | PAID | PARTIAL | FAILED | OVERDUE
     status           String          @default("PENDING")
     reference        String          @unique
     method           String          @default("SYSTEM")

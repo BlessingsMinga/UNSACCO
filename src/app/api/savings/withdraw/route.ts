@@ -21,17 +21,24 @@ export async function POST(req: Request) {
         return fail("Please update your phone number in your profile to receive mobile money.");
       }
 
-      // Phase 1: Reserve the funds - create pending transaction inside atomic read
-      const { savings, pendingTxn } = await db.$transaction(async (tx) => {
+      // Phase 1: reserve funds before calling the payout provider.  The conditional
+      // decrement is the concurrency guard: two requests cannot reserve the same money.
+      const { pendingTxn } = await db.$transaction(async (tx) => {
         const savings = await tx.savingsAccount.findUnique({ where: { userId: user.id } });
         if (!savings) throw new Error("NOT_FOUND");
-        if (savings.balance < data.amount) {
-          throw new Error("Insufficient savings balance for this withdrawal.");
+
+        const reserved = await tx.savingsAccount.updateMany({
+          where: {
+            id: savings.id,
+            balance: { gte: data.amount + MIN_SAVINGS_DEPOSIT },
+          },
+          data: { balance: { decrement: data.amount } },
+        });
+        if (reserved.count !== 1) {
+          throw new Error(`Insufficient savings balance. A minimum balance of MK ${MIN_SAVINGS_DEPOSIT.toLocaleString()} must be maintained.`);
         }
-        const balanceAfter = savings.balance - data.amount;
-        if (balanceAfter < MIN_SAVINGS_DEPOSIT) {
-          throw new Error(`Minimum savings balance of MK ${MIN_SAVINGS_DEPOSIT.toLocaleString()} must be maintained after withdrawal.`);
-        }
+
+        const reservedAccount = await tx.savingsAccount.findUniqueOrThrow({ where: { id: savings.id } });
 
         const ref = generateReference("PWD");
         const pendingTxn = await tx.savingsTransaction.create({
@@ -40,7 +47,7 @@ export async function POST(req: Request) {
             userId: user.id,
             type: "WITHDRAWAL",
             amount: data.amount,
-            balanceAfter,
+            balanceAfter: reservedAccount.balance,
             description: data.description || "Withdrawal via PayChangu to mobile money (pending)",
             reference: ref,
             method: "PAYCHANGU",
@@ -49,7 +56,7 @@ export async function POST(req: Request) {
           },
         });
 
-        return { savings, pendingTxn };
+        return { pendingTxn };
       });
 
       // Phase 2: Call external PayChangu API (outside transaction - retryable)
@@ -63,36 +70,33 @@ export async function POST(req: Request) {
       });
 
       if (payoutRes.status !== "success") {
-        await db.savingsTransaction.update({
-          where: { id: pendingTxn.id },
-          data: { status: "FAILED" },
+        // Release the reservation only once; a provider retry must not credit twice.
+        await db.$transaction(async (tx) => {
+          const failed = await tx.savingsTransaction.updateMany({
+            where: { id: pendingTxn.id, status: "PENDING" },
+            data: { status: "FAILED" },
+          });
+          if (failed.count === 1) {
+            await tx.savingsAccount.update({
+              where: { id: pendingTxn.accountId },
+              data: { balance: { increment: data.amount } },
+            });
+          }
         });
         return fail(payoutRes.message || "Withdrawal disbursement failed");
       }
 
-      // Phase 3: Atomically commit the deduction and mark completed
+      // Phase 3: mark the already-reserved funds as paid. No balance mutation occurs
+      // here, so an external payout can never create an overdraft.
       await db.$transaction(async (tx) => {
-        const freshSavings = await tx.savingsAccount.findUnique({ where: { userId: user.id } });
-        if (!freshSavings) throw new Error("NOT_FOUND");
-
-        const balanceAfter = freshSavings.balance - data.amount;
-        if (balanceAfter < 0) {
-          throw new Error("Insufficient balance after disbursement. Contact support.");
-        }
-
-        await tx.savingsAccount.update({
-          where: { id: savings.id },
-          data: { balance: balanceAfter },
-        });
-
-        await tx.savingsTransaction.update({
-          where: { id: pendingTxn.id },
+        const completed = await tx.savingsTransaction.updateMany({
+          where: { id: pendingTxn.id, status: "PENDING" },
           data: {
             status: "COMPLETED",
-            balanceAfter,
             description: data.description || "Withdrawal via PayChangu to mobile money",
           },
         });
+        if (completed.count !== 1) throw new Error("Withdrawal is no longer pending.");
       });
 
       const completedTxn = await db.savingsTransaction.findUnique({ where: { id: pendingTxn.id } });
