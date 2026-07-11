@@ -3,6 +3,8 @@
  * Enables instant push of notifications and dashboard updates to connected clients.
  */
 
+import { REALTIME_SUBSCRIBE_STATES } from "@supabase/supabase-js";
+
 const NOTIFICATION_CHANNEL_PREFIX = "unissaco:notifications";
 
 /**
@@ -47,7 +49,7 @@ export function subscribeToNotifications(
     );
 
     channel.subscribe((status) => {
-      if (status !== "subscribed") {
+      if (status !== REALTIME_SUBSCRIBE_STATES.SUBSCRIBED) {
         console.warn("[REALTIME] Subscription status:", status);
       }
     });
