@@ -442,3 +442,21 @@ model AuditLog {
     @@index([action])
     @@index([createdAt])
 }
+
+// Provider notifications are retained separately from the business ledger so
+// support can reconcile and safely replay failed payment processing.
+model PaymentWebhookEvent {
+    id          String   @id @default(cuid())
+    provider    String
+    payloadHash String   @unique
+    eventType   String?
+    reference   String?
+    status      String?
+    payload     Json
+    receivedAt  DateTime @default(now())
+    processedAt DateTime?
+    error       String?
+
+    @@index([reference])
+    @@index([receivedAt])
+}

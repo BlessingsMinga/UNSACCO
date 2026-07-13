@@ -61,13 +61,27 @@ export async function POST(req: Request) {
 
       // Phase 2: Call external PayChangu API (outside transaction - retryable)
       const network = phone.startsWith("99") ? "airtel" : "tnm";
-      const payoutRes = await disburseToMobileMoney({
-        amount: data.amount,
-        phone,
-        network,
-        reference: pendingTxn.reference,
-        narration: data.description || "Savings withdrawal via PayChangu",
-      });
+      let payoutRes;
+      try {
+        payoutRes = await disburseToMobileMoney({
+          amount: data.amount,
+          phone,
+          network,
+          reference: pendingTxn.reference,
+          narration: data.description || "Savings withdrawal via PayChangu",
+        });
+      } catch (error) {
+        await db.$transaction(async (tx) => {
+          const failed = await tx.savingsTransaction.updateMany({
+            where: { id: pendingTxn.id, status: "PENDING" },
+            data: { status: "FAILED" },
+          });
+          if (failed.count === 1) {
+            await tx.savingsAccount.update({ where: { id: pendingTxn.accountId }, data: { balance: { increment: data.amount } } });
+          }
+        });
+        throw error;
+      }
 
       if (payoutRes.status !== "success") {
         // Release the reservation only once; a provider retry must not credit twice.
@@ -86,36 +100,26 @@ export async function POST(req: Request) {
         return fail(payoutRes.message || "Withdrawal disbursement failed");
       }
 
-      // Phase 3: mark the already-reserved funds as paid. No balance mutation occurs
-      // here, so an external payout can never create an overdraft.
+      // A successful API response means the payout was accepted, not settled.
+      // Keep the funds reserved until reconciliation confirms delivery.
       await db.$transaction(async (tx) => {
-        const completed = await tx.savingsTransaction.updateMany({
+        const processing = await tx.savingsTransaction.updateMany({
           where: { id: pendingTxn.id, status: "PENDING" },
           data: {
-            status: "COMPLETED",
-            description: data.description || "Withdrawal via PayChangu to mobile money",
+            status: "PROCESSING",
+            description: data.description || "Withdrawal via PayChangu to mobile money (awaiting settlement)",
           },
         });
-        if (completed.count !== 1) throw new Error("Withdrawal is no longer pending.");
+        if (processing.count !== 1) throw new Error("Withdrawal is no longer pending.");
       });
 
-      const completedTxn = await db.savingsTransaction.findUnique({ where: { id: pendingTxn.id } });
-
-      await audit(user.id, "WITHDRAWAL", "SavingsTransaction", completedTxn!.id, `Withdrawal ${data.amount} to mobile money`);
-
-      await createNotification({
-        userId: user.id,
-        type: "WITHDRAWAL",
-        title: "Savings Withdrawal",
-        message: `MK ${data.amount.toLocaleString()} sent to your mobile money wallet (${phone}).`,
-        link: "/savings",
-        entityId: completedTxn!.id,
-      });
+      const processingTxn = await db.savingsTransaction.findUnique({ where: { id: pendingTxn.id } });
+      await audit(user.id, "WITHDRAWAL_REQUESTED", "SavingsTransaction", processingTxn!.id, `Withdrawal ${data.amount} submitted to PayChangu`);
 
       return ok({
-        transaction: completedTxn,
-        newBalance: completedTxn!.balanceAfter,
-        message: `MK ${data.amount.toLocaleString()} sent to your mobile money wallet`,
+        transaction: processingTxn,
+        newBalance: processingTxn!.balanceAfter,
+        message: `Withdrawal of MK ${data.amount.toLocaleString()} has been submitted and will complete after PayChangu confirms delivery.`,
       });
     }
 

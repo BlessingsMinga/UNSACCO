@@ -3,17 +3,22 @@ import crypto from "crypto";
 import { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { splitRepayment } from "@/lib/financial";
+import { verifyPayment } from "@/lib/paychangu";
 
 type PaymentData = {
   charge_id?: string;
   tx_ref?: string;
+  reference?: string;
   amount?: number | string;
+  currency?: string;
+  status?: string;
 };
 
 type PaymentEvent = {
   event_type?: string;
+  status?: string;
   data?: PaymentData;
-};
+} & PaymentData;
 
 function amountsMatch(expected: number, received: unknown): boolean {
   const value = typeof received === "number" ? received : Number(received);
@@ -21,60 +26,111 @@ function amountsMatch(expected: number, received: unknown): boolean {
 }
 
 function paymentReference(data: PaymentData | undefined): string | null {
-  const reference = data?.tx_ref || data?.charge_id;
+  const reference = data?.tx_ref || data?.reference;
   return typeof reference === "string" && reference.length > 0 ? reference : null;
 }
 
+function eventPayload(event: PaymentEvent): PaymentData {
+  return { ...event, ...event.data };
+}
+
+function isSuccessful(event: PaymentEvent, data: PaymentData): boolean {
+  return event.status === "success" || data.status === "success" || event.event_type === "transaction.successful";
+}
+
+function isFailed(event: PaymentEvent, data: PaymentData): boolean {
+  return event.status === "failed" || data.status === "failed" || event.event_type === "transaction.failed";
+}
+
 export async function POST(request: NextRequest) {
+  let webhookEventId: string | undefined;
   try {
     const body = await request.text();
-    const signature = request.headers.get("paychangu-signature");
-    const secretKey = process.env.PAYCHANGU_SECRET_KEY;
-    if (!secretKey) return NextResponse.json({ error: "Server configuration error" }, { status: 500 });
+    // PayChangu signs webhooks with the webhook secret generated in its dashboard,
+    // not with the API secret used to initiate or verify payments.
+    const signature = request.headers.get("signature");
+    const webhookSecret = process.env.PAYCHANGU_WEBHOOK_SECRET;
+    if (!webhookSecret) return NextResponse.json({ error: "Server configuration error" }, { status: 500 });
 
-    const expectedSignature = crypto.createHmac("sha256", secretKey).update(body).digest("hex");
+    const expectedSignature = crypto.createHmac("sha256", webhookSecret).update(body).digest("hex");
     if (!signature || signature.length !== expectedSignature.length || !crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expectedSignature))) {
       return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
     }
 
     const event = JSON.parse(body) as PaymentEvent;
-    if (!event.data) return NextResponse.json({ error: "Invalid payment payload" }, { status: 400 });
+    const data = eventPayload(event);
+    if (!paymentReference(data)) return NextResponse.json({ error: "Invalid payment payload" }, { status: 400 });
 
-    if (event.event_type === "transaction.successful") {
-      await handleSuccessfulPayment(event.data);
-    } else if (event.event_type === "transaction.failed") {
-      await handleFailedPayment(event.data);
+    const eventRecord = await db.paymentWebhookEvent.upsert({
+      where: { payloadHash: crypto.createHash("sha256").update(body).digest("hex") },
+      create: {
+        provider: "PAYCHANGU",
+        payloadHash: crypto.createHash("sha256").update(body).digest("hex"),
+        eventType: event.event_type,
+        reference: paymentReference(data),
+        status: data.status || event.status,
+        payload: event,
+      },
+      update: { receivedAt: new Date() },
+    });
+    webhookEventId = eventRecord.id;
+
+    if (isSuccessful(event, data)) {
+      await handleSuccessfulPayment(data);
+    } else if (isFailed(event, data)) {
+      await handleFailedPayment(data);
     }
+    await db.paymentWebhookEvent.update({ where: { id: eventRecord.id }, data: { processedAt: new Date(), error: null } });
     return NextResponse.json({ status: "received" });
   } catch (error) {
+    if (webhookEventId) {
+      await db.paymentWebhookEvent.update({
+        where: { id: webhookEventId },
+        data: { error: error instanceof Error ? error.message.slice(0, 1000) : "Unknown processing error" },
+      }).catch(() => undefined);
+    }
     console.error("Webhook processing failed", error);
     // A 5xx tells the provider to retry; all processors below are idempotent.
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
 
-async function handleSuccessfulPayment(data: PaymentData): Promise<void> {
+export async function handleSuccessfulPayment(data: PaymentData): Promise<void> {
   const reference = paymentReference(data);
   if (!reference) throw new Error("Payment event has no reference");
+
+  // A signed webhook is a notification, not payment proof. Re-query PayChangu
+  // before crediting any local ledger entry.
+  const verification = await verifyPayment(reference);
+  const providerPayment = verification.data;
+  if (
+    verification.status !== "success" ||
+    providerPayment?.status !== "success" ||
+    providerPayment.tx_ref !== reference ||
+    providerPayment.currency !== "MWK"
+  ) {
+    throw new Error(`PayChangu verification failed for ${reference}`);
+  }
+  const verifiedAmount = providerPayment.amount;
 
   // The local pending record—not client-controlled metadata—determines what is credited.
   const repayment = await db.loanRepayment.findUnique({ where: { reference } });
   if (repayment) {
-    if (!amountsMatch(repayment.amount, data.amount)) throw new Error(`Amount mismatch for repayment ${reference}`);
+    if (!amountsMatch(repayment.amount, verifiedAmount)) throw new Error(`Amount mismatch for repayment ${reference}`);
     await processLoanRepayment(repayment.id);
     return;
   }
 
   const deposit = await db.savingsTransaction.findFirst({ where: { reference, method: "PAYCHANGU" } });
   if (deposit) {
-    if (!amountsMatch(deposit.amount, data.amount)) throw new Error(`Amount mismatch for savings deposit ${reference}`);
+    if (!amountsMatch(deposit.amount, verifiedAmount)) throw new Error(`Amount mismatch for savings deposit ${reference}`);
     await processSavingsDeposit(deposit.id);
     return;
   }
 
   const sharePurchase = await db.shareTransaction.findFirst({ where: { reference } });
   if (sharePurchase) {
-    if (!amountsMatch(sharePurchase.totalAmount, data.amount)) throw new Error(`Amount mismatch for share purchase ${reference}`);
+    if (!amountsMatch(sharePurchase.totalAmount, verifiedAmount)) throw new Error(`Amount mismatch for share purchase ${reference}`);
     await processSharePurchase(sharePurchase.id);
     return;
   }
@@ -170,7 +226,7 @@ async function processSharePurchase(transactionId: string): Promise<void> {
   });
 }
 
-async function handleFailedPayment(data: PaymentData): Promise<void> {
+export async function handleFailedPayment(data: PaymentData): Promise<void> {
   const reference = paymentReference(data);
   if (!reference) return;
 

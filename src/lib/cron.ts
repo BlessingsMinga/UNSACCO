@@ -19,6 +19,8 @@ import {
     SAVINGS_INTEREST_RATE,
     LOAN_LATE_PENALTY,
 } from "@/lib/constants";
+import { verifyPayment, verifyPayout } from "@/lib/paychangu";
+import { handleFailedPayment, handleSuccessfulPayment } from "@/app/api/payments/webhook/route";
 
 // ── Savings Interest ─────────────────────────────────────────────────────────
 
@@ -220,6 +222,65 @@ export async function processDividendPayouts(): Promise<{
     return { processed, totalAmount };
 }
 
+// ── PayChangu payout reconciliation ─────────────────────────────────────────
+
+/** Complete or reverse reserved withdrawals only after provider settlement. */
+export async function reconcilePaychanguPayouts(): Promise<{ settled: number; failed: number; creditedPayments: number }> {
+    const withdrawals = await db.savingsTransaction.findMany({
+        where: { type: "WITHDRAWAL", method: "PAYCHANGU", status: "PROCESSING" },
+        take: 100,
+    });
+    let settled = 0;
+    let failed = 0;
+    let creditedPayments = 0;
+
+    for (const withdrawal of withdrawals) {
+        try {
+            const result = await verifyPayout(withdrawal.reference);
+            const status = result.data?.transaction?.status?.toLowerCase();
+            if (["success", "successful", "completed"].includes(status || "")) {
+                const completed = await db.savingsTransaction.updateMany({
+                    where: { id: withdrawal.id, status: "PROCESSING" },
+                    data: { status: "COMPLETED", description: withdrawal.description.replace(" (awaiting settlement)", "") },
+                });
+                settled += completed.count;
+            } else if (["failed", "cancelled", "reversed"].includes(status || "")) {
+                await db.$transaction(async (tx) => {
+                    const markedFailed = await tx.savingsTransaction.updateMany({
+                        where: { id: withdrawal.id, status: "PROCESSING" },
+                        data: { status: "FAILED" },
+                    });
+                    if (markedFailed.count === 1) {
+                        await tx.savingsAccount.update({ where: { id: withdrawal.accountId }, data: { balance: { increment: withdrawal.amount } } });
+                        failed++;
+                    }
+                });
+            }
+        } catch (error) {
+            console.error(`[CRON] PayChangu payout reconciliation failed for ${withdrawal.reference}`, error);
+        }
+    }
+    const pendingReferences = await Promise.all([
+        db.loanRepayment.findMany({ where: { method: "PAYCHANGU", status: "PENDING" }, select: { reference: true }, take: 100 }),
+        db.savingsTransaction.findMany({ where: { type: "DEPOSIT", method: "PAYCHANGU", status: "PENDING" }, select: { reference: true }, take: 100 }),
+        db.shareTransaction.findMany({ where: { status: "PENDING" }, select: { reference: true }, take: 100 }),
+    ]);
+    for (const reference of new Set(pendingReferences.flat().map(({ reference }) => reference))) {
+        try {
+            const verification = await verifyPayment(reference);
+            if (verification.data?.status === "success") {
+                await handleSuccessfulPayment({ tx_ref: reference });
+                creditedPayments++;
+            } else if (verification.data?.status === "failed") {
+                await handleFailedPayment({ tx_ref: reference });
+            }
+        } catch {
+            // Pending and failed provider results are expected; the next run retries.
+        }
+    }
+    return { settled, failed, creditedPayments };
+}
+
 // ── Master Cron Runner ───────────────────────────────────────────────────────
 
 /**
@@ -230,10 +291,11 @@ export async function runAllCronJobs(): Promise<{
     interest: { totalAccounts: number; totalInterest: number };
     overdue: { markedOverdue: number; penaltiesApplied: number; totalPenalty: number };
     dividends: { processed: number; totalAmount: number };
+    paychanguPayouts: { settled: number; failed: number; creditedPayments: number };
 }> {
     console.log("[CRON] Starting all scheduled jobs...");
 
-    const [interest, overdue, dividends] = await Promise.all([
+    const [interest, overdue, dividends, paychanguPayouts] = await Promise.all([
         creditMonthlyInterest().catch((e) => {
             console.error("[CRON] Interest crediting failed:", e);
             return { totalAccounts: 0, totalInterest: 0 };
@@ -246,8 +308,12 @@ export async function runAllCronJobs(): Promise<{
             console.error("[CRON] Dividend processing failed:", e);
             return { processed: 0, totalAmount: 0 };
         }),
+        reconcilePaychanguPayouts().catch((e) => {
+            console.error("[CRON] PayChangu payout reconciliation failed:", e);
+            return { settled: 0, failed: 0, creditedPayments: 0 };
+        }),
     ]);
 
     console.log("[CRON] All jobs completed.");
-    return { interest, overdue, dividends };
+    return { interest, overdue, dividends, paychanguPayouts };
 }

@@ -3,7 +3,6 @@
 import { useEffect, useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { verifyPayment } from "@/lib/paychangu";
 import { Loader2, CheckCircle2, XCircle, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -26,12 +25,16 @@ function PaymentStatusContent() {
             }
 
             try {
-                const result = await verifyPayment(txRef);
+                const response = await fetch(`/api/payments/${encodeURIComponent(txRef)}/status`, {
+                    cache: "no-store",
+                });
+                if (!response.ok) throw new Error("Unable to retrieve payment status");
+                const result = await response.json();
                 if (!mounted) return;
-                if (result.status === "success" && result.data?.status === "success") {
+                if (result.status === "PAID" || result.status === "COMPLETED") {
                     setStatus("success");
-                    setMessage(`Payment of MK ${result.data.charged_amount?.toLocaleString() || ""} was successful!`);
-                } else if (result.data?.status === "failed") {
+                    setMessage(`Payment of MK ${result.amount.toLocaleString()} was successful!`);
+                } else if (result.status === "FAILED") {
                     setStatus("failed");
                     setMessage("Payment failed. Please try again.");
                 } else {

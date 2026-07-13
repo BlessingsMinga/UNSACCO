@@ -28,7 +28,20 @@ interface PaychanguDisburseResponse {
     };
 }
 
-interface PaychanguVerifyResponse {
+interface PaychanguPayoutStatusResponse {
+    status: string;
+    message?: string;
+    data?: {
+        transaction?: {
+            charge_id: string;
+            status: string;
+            amount: number;
+            currency: string;
+        };
+    };
+}
+
+export interface PaychanguVerifyResponse {
     status: string;
     message: string;
     data?: {
@@ -88,10 +101,10 @@ export async function initiateStandardCheckout(params: {
             ...(params.lastName && { last_name: params.lastName }),
             callback_url:
                 params.callbackUrl ||
-                `${process.env.NEXT_PUBLIC_APP_URL}/api/payments/webhook`,
+                `${process.env.NEXT_PUBLIC_APP_URL}/api/payments/callback`,
             return_url:
                 params.returnUrl ||
-                `${process.env.NEXT_PUBLIC_APP_URL}/payments/status?tx_ref=${params.txRef}`,
+                `${process.env.NEXT_PUBLIC_APP_URL}/payments/status`,
             customization: {
                 title: params.title || "UNSACCO Payment",
                 description: params.description || "Loan Repayment / Contribution",
@@ -142,6 +155,25 @@ export async function disburseToMobileMoney(params: {
     return response.json();
 }
 
+/** A payout request is accepted before the recipient wallet is credited. */
+export async function verifyPayout(reference: string): Promise<PaychanguPayoutStatusResponse> {
+    const response = await fetch(
+        `${PAYCHANGU_API}/direct-charge/payouts/${encodeURIComponent(reference)}/details`,
+        {
+            method: "GET",
+            headers: {
+                Accept: "application/json",
+                Authorization: `Bearer ${process.env.PAYCHANGU_SECRET_KEY}`,
+            },
+        }
+    );
+    if (!response.ok) {
+        const errorBody = await safeReadBody(response);
+        throw new Error(`PayChangu payout verification error (${response.status}): ${errorBody}`);
+    }
+    return response.json();
+}
+
 /**
  * Verify a payment/charge status by reference.
  */
@@ -149,7 +181,7 @@ export async function verifyPayment(
     txRef: string
 ): Promise<PaychanguVerifyResponse> {
     const response = await fetch(
-        `${PAYCHANGU_API}/verify-payment/${txRef}`,
+        `${PAYCHANGU_API}/verify-payment/${encodeURIComponent(txRef)}`,
         {
             method: "GET",
             headers: {
