@@ -5,7 +5,7 @@
  */
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
-import { uploadAvatar, deleteAvatar, StorageError } from "@/lib/supabase/storage";
+import { uploadAvatar, deleteAvatar, StorageError } from "@/lib/supabase/service-storage";
 import { db } from "@/lib/db";
 
 export const runtime = "nodejs";

@@ -1,16 +1,18 @@
 "use client";
 
 import { useEffect, useState, Suspense } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { Loader2, CheckCircle2, XCircle, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 function PaymentStatusContent() {
     const searchParams = useSearchParams();
+    const router = useRouter();
     const txRef = searchParams.get("tx_ref");
     const [status, setStatus] = useState<"loading" | "success" | "failed" | "unknown">("loading");
     const [message, setMessage] = useState("Verifying your payment...");
+    const [redirectCountdown, setRedirectCountdown] = useState(5);
 
     useEffect(() => {
         let mounted = true;
@@ -34,6 +36,14 @@ function PaymentStatusContent() {
                 if (result.status === "PAID" || result.status === "COMPLETED") {
                     setStatus("success");
                     setMessage(`Payment of MK ${result.amount.toLocaleString()} was successful!`);
+                    // Auto-redirect to dashboard after 5 seconds
+                    const timer = setInterval(() => {
+                        setRedirectCountdown((prev) => prev - 1);
+                    }, 1000);
+                    setTimeout(() => {
+                        router.push("/dashboard");
+                    }, 5000);
+                    return () => clearInterval(timer);
                 } else if (result.status === "FAILED") {
                     setStatus("failed");
                     setMessage("Payment failed. Please try again.");
@@ -112,13 +122,18 @@ function PaymentStatusContent() {
                     </>
                 )}
 
-                <div className="pt-4">
-                    <Link href="/dashboard">
-                        <Button className="w-full">
-                            Return to Dashboard
-                        </Button>
-                    </Link>
-                </div>
+                        <div className="pt-4 flex flex-col gap-2">
+                            {status === "success" && (
+                                <p className="text-xs text-gray-400">
+                                    Redirecting to dashboard in {redirectCountdown} seconds...
+                                </p>
+                            )}
+                            <Link href="/dashboard">
+                                <Button className="w-full">
+                                    Return to Dashboard
+                                </Button>
+                            </Link>
+                        </div>
             </div>
         </div>
     );

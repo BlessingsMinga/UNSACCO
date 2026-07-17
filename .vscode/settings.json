@@ -7,5 +7,11 @@
                 "copilotcli/auto"
             ]
         }
+    },
+    "chat.tools.terminal.autoApprove": {
+        "/^node -e \"console\\.log\\(require\\.resolve\\('tailwindcss'\\)\\)\" ; node -e \"console\\.log\\(require\\.resolve\\('@tailwindcss/postcss'\\)\\)\"$/": {
+            "approve": true,
+            "matchCommandLine": true
+        }
     }
 }

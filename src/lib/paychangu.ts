@@ -85,6 +85,7 @@ export async function initiateStandardCheckout(params: {
     title?: string;
     description?: string;
 }): Promise<PaychanguCheckoutResponse> {
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_BASE_URL;
     const response = await fetch(`${PAYCHANGU_API}/payment`, {
         method: "POST",
         headers: {
@@ -101,10 +102,10 @@ export async function initiateStandardCheckout(params: {
             ...(params.lastName && { last_name: params.lastName }),
             callback_url:
                 params.callbackUrl ||
-                `${process.env.NEXT_PUBLIC_APP_URL}/api/payments/callback`,
+                `${appUrl}/api/payments/callback`,
             return_url:
                 params.returnUrl ||
-                `${process.env.NEXT_PUBLIC_APP_URL}/payments/status`,
+                `${appUrl}/payments/status`,
             customization: {
                 title: params.title || "UNSACCO Payment",
                 description: params.description || "Loan Repayment / Contribution",

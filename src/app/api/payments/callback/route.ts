@@ -2,6 +2,14 @@ import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
 
+function getAppUrl(request: Request) {
+  return (
+    process.env.NEXT_PUBLIC_APP_URL ||
+    process.env.NEXT_PUBLIC_BASE_URL ||
+    `${new URL(request.url).protocol}//${request.headers.get("host")}`
+  );
+}
+
 /**
  * PayChangu's customer redirect is deliberately separate from the signed
  * provider webhook. It performs no payment settlement; it only sends the
@@ -24,7 +32,7 @@ export async function POST(request: Request) {
     // Fall through to the status screen, which can still explain the outcome.
   }
 
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL;
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_BASE_URL;
   if (!baseUrl) return NextResponse.json({ error: "Server configuration error" }, { status: 500 });
   const target = new URL("/payments/status", baseUrl);
   if (txRef) target.searchParams.set("tx_ref", txRef);
@@ -32,7 +40,7 @@ export async function POST(request: Request) {
 }
 
 export function GET(request: Request) {
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL;
+  const baseUrl = getAppUrl(request);
   if (!baseUrl) return NextResponse.json({ error: "Server configuration error" }, { status: 500 });
   const source = new URL(request.url);
   const target = new URL("/payments/status", baseUrl);
