@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import { useApp } from "@/lib/store";
 import { api, ApiError } from "@/lib/api-client";
 import { createClient } from "@/lib/supabase/client";
@@ -11,6 +11,8 @@ import { Card } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { BrandLogo } from "@/components/unissaco/brand-logo";
 import { toast } from "sonner";
+import ReCAPTCHA from "react-google-recaptcha";
+import { shouldRequireRecaptcha, getRecaptchaSiteKey } from "@/lib/recaptcha";
 import {
   ArrowLeft,
   Eye,
@@ -53,6 +55,8 @@ export function AuthScreen() {
   // login state
   const [loginEmail, setLoginEmail] = useState("");
   const [loginPwd, setLoginPwd] = useState("");
+  const [recaptchaToken, setRecaptchaToken] = useState<string | null>(null);
+  const recaptchaRef = useRef<ReCAPTCHA | null>(null);
 
   // register state
   const [reg, setReg] = useState({
@@ -70,6 +74,7 @@ export function AuthScreen() {
 
   function switchMode(m: Mode) {
     setErrors({});
+    setRecaptchaToken(null);
     setView(m);
   }
 
@@ -112,12 +117,16 @@ export function AuthScreen() {
       toast.error("Please enter your email and password.");
       return;
     }
+    if (shouldRequireRecaptcha() && !recaptchaToken) {
+      toast.error("Please complete the reCAPTCHA verification.");
+      return;
+    }
     setErrors({});
     setLoading(true);
     try {
       const res = await api.post<{ id: string; email: string; fullName: string; role: string; status: string; studentId: string }>(
         "/api/auth/login",
-        { email: loginEmail, password: loginPwd }
+        { email: loginEmail, password: loginPwd, recaptchaToken }
       );
       setUser(res);
       toast.success(`Welcome back, ${res.fullName?.split(" ")[0] ?? "member"}!`);
@@ -300,6 +309,12 @@ export function AuthScreen() {
                     </button>
                   </div>
                 </div>
+                <ReCAPTCHA
+                  ref={recaptchaRef}
+                  sitekey={getRecaptchaSiteKey()}
+                  onChange={(token) => setRecaptchaToken(token)}
+                  className="flex justify-center"
+                />
                 <Button type="submit" className="w-full" size="lg" disabled={loading}>
                   {loading && <Loader2 className="size-4 animate-spin mr-2" />}
                   Log in

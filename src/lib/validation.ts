@@ -49,6 +49,7 @@ export const registerSchema = z
 export const loginSchema = z.object({
   email: emailSchema,
   password: z.string().min(1, "Enter your password"),
+  recaptchaToken: z.string().min(1, "reCAPTCHA verification is required").nullish(),
 });
 
 export const depositSchema = z.object({

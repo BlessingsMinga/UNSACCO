@@ -3,6 +3,7 @@ import { createSession, audit, verifyPassword } from "@/lib/auth";
 import { loginSchema } from "@/lib/validation";
 import { ok, fail, handleApiError, parseBody } from "@/lib/api";
 import { rateLimitOrThrow } from "@/lib/rate-limit";
+import { verifyRecaptchaToken } from "@/lib/recaptcha";
 
 export const runtime = "nodejs";
 
@@ -10,6 +11,11 @@ export async function POST(req: Request) {
   try {
     await rateLimitOrThrow(req, "AUTH");
     const data = await parseBody(req, loginSchema);
+
+    // Verify reCAPTCHA token
+    if (!data.recaptchaToken || !(await verifyRecaptchaToken(data.recaptchaToken))) {
+      return fail("reCAPTCHA verification failed. Please try again.", 400);
+    }
     const user = await db.user.findUnique({ where: { email: data.email } });
     if (!user || !verifyPassword(data.password, user.passwordHash)) {
       return fail("Invalid email or password.", 401);

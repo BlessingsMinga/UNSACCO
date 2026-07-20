@@ -4,6 +4,7 @@ import {
   loginSchema,
   updateProfileSchema,
 } from "@/lib/validation";
+import { shouldRequireRecaptcha } from "@/lib/recaptcha";
 
 describe("registerSchema", () => {
   const validInput = {
@@ -74,8 +75,12 @@ describe("registerSchema", () => {
 });
 
 describe("loginSchema", () => {
-  it("should validate valid login", () => {
+  it("should validate valid login without a reCAPTCHA token when the feature is not required", () => {
     expect(loginSchema.safeParse({ email: "john@example.com", password: "pwd" }).success).toBe(true);
+  });
+
+  it("should skip reCAPTCHA enforcement in development", () => {
+    expect(shouldRequireRecaptcha({ NODE_ENV: "development", NEXT_PUBLIC_RECAPTCHA_SITE_KEY: "site-key", RECAPTCHA_SECRET_KEY: "secret" })).toBe(false);
   });
 
   it("should reject empty password", () => {
